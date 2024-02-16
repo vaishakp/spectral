@@ -1,0 +1,13 @@
+# Modules to install
+
+numpy
+scipy
+matplotlib
+numba
+termcolor
+datetime
+sympy
+numpydoc
+config @ git+https://gitlab.com/vaishakp/config@master
+recommonmark
+sphinx-rtd-theme

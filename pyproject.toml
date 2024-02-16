@@ -1,0 +1,59 @@
+[tool.black]
+line-length = 80
+
+[tool.isort]
+profile = "black"
+
+[tool.pylint.'MESSAGES CONTROL']
+max-line-length = 120
+disable= "W0311"
+
+[tool.flake8]
+max-line-length = 120
+ignore = ['E203']
+
+[build-system]
+#requires = ["setuptools"]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+#build-backend = "setuptools.build_meta"
+
+[tool.hatch.version]
+path = "spectral/__init__.py"
+
+
+[project]
+name = "spectral"
+dynamic = ['version']
+authors = [{ name="Vaishak Prasad", email="vaishakprasad@gmail.com"}, ]
+description = " Numerical implementation of various spectral methods "
+readme = "README.md"
+requires-python = ">=3.0"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = ["numpy",
+	"scipy",
+	"matplotlib",
+	"numba",
+	"termcolor",
+	"datetime",
+	"numpydoc",
+    ]
+#    "config@git+https://gitlab.com/vaishakp/config"]
+
+[project.optional-dependencies]
+EXT = []
+
+[project.urls]
+"Homepage" = "https://gitlab.com/vaishakp/spectral"
+"Bug Tracker" = "https://gitlab.com/vaishakp/spectral/issues"
+
+#[tool.hatch.metadata]
+#allow-direct-references = true
+
+[tools.setuptools.dynamic]
+version = {attr = "spectral.__version__"}
+
