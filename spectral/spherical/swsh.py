@@ -1,3 +1,11 @@
+import sympy as sp
+import numpy as np
+import math
+from waveformtools.waveformtools import message
+from spectral.spherical.Yslm_prec_grid_mp import Yslm_prec_grid_mp
+from spectral.spherical.swsh import Yslm_vec, Yslm_prec_grid
+
+
 def check_Yslm_args(spin_weight, ell, emm):
     """Check if the arguments to a Yslm functions
     makes sense
@@ -447,3 +455,66 @@ def Yslm_prec_sym(spin_weight, ell, emm):
     Yslm_expr = factor * sp.simplify(Yslm_expr)
 
     return Yslm_expr
+
+
+def realYlm(theta_grid, phi_grid, ell, emm, method='vec', prec=None, grid_info=None, ell_max=None):
+    ''' The real spherical harmonics
+    
+    Parameters 
+    ----------
+    theta_grid,phi_grid : 2darray
+                          The meshgrid of angles
+    ell, emm : int
+               The mode numbers
+    method : str
+             'vec' for vectorized Yslm computation.
+             'prec_grid' for precise Yslm computation. 
+             'prec_grid_mp' for precise, parallel computation
+             of Yslm. Also specify the precision alongwith for 
+             precise computations.
+    
+    Returns
+    -------
+    realYlm : 2darray
+              The real spin weight 0 spherical harmonics as defined on wikipedia.
+
+
+     '''
+    spin_weight = 0
+
+    if method == 'vec':
+        Yl_pm = Yslm_vec(theta_grid=theta_grid, phi_grid=phi_grid, spin_weight=spin_weight, ell=ell, emm=emm)
+        Yl_mm = Yslm_vec(theta_grid=theta_grid, phi_grid=phi_grid, spin_weight=spin_weight, ell=ell, emm=-emm)
+
+    elif method == 'prec_grid_mp':
+        
+
+        Ylm_calc = Yslm_prec_grid_mp(ell_max=ell_max, grid_info=grid_info, nprocs=None, spin_weight=0, prec=prec)
+
+        Ylm_calc.run()
+
+        Yl_pm = Ylm_calc.result_list[]
+        Yl_mm = Ylm_calc.result_list[]
+
+    elif method=='prec_grid':
+        Yl_pm = Yslm_prec_grid(theta_grid=theta_grid, phi_grid=phi_grid, spin_weight=spin_weight, ell=ell, emm=emm)
+        Yl_mm = Yslm_prec_grid(theta_grid=theta_grid, phi_grid=phi_grid, spin_weight=spin_weight, ell=ell, emm=-emm)
+
+    else:
+        raise KeyError(f"The requested method {method} not found. The available methods are:\n"
+                        "\t 'vec' for vectorized Yslm computation.\n"
+                        "\t 'prec_grid' for precise Yslm computation. \n"
+                        "\t 'prec_grid_mp' for precise, parallel computation \n"
+                        "\t of Yslm. Also specify the precision alongwith for \n"
+                        "\t precise computations.")
+    
+    if emm<0:
+        reYlm = (1j/np.sqrt(2))* (Yl_pm - (-1)**(emm) * Yl_mm)
+    elif emm==0:
+        reYlm = Yl_pm
+    
+    else:
+        reYlm = (1/np.sqrt(2))* (Yl_mm + (-1)**(emm) * Yl_pm)
+
+
+    return reYlm

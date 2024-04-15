@@ -5,6 +5,10 @@ import os
 import numpy as np
 from multiprocessing import cpu_count, Pool, TimeoutError
 
+
+Yslm_prec_grid_mp_cache = {}
+
+
 class Yslm_prec_grid_mp:
     ''' Evaluate the spin weighted spherical harmonics 
     asynchronously on multiple processors at any precision 
@@ -39,6 +43,8 @@ class Yslm_prec_grid_mp:
         self._spin_weght = spin_weight
         
         self.setup_env()
+        self.initialize()
+
 
         self._job_list = None
         self._result_list = []
@@ -116,24 +122,31 @@ class Yslm_prec_grid_mp:
         
     def run(self):
         
-        #if __name__ == '__main__':
+        if not self.is_available_in_cache():
 
-        multiple_results = self.pool.map(self.compute_Yslm_prec, self.job_list)
-        #multiple_results = self.pool.map(self.test_mp, self.job_list)
-        # launching multiple evaluations asynchronously *may* use more processes
-        #multiple_results = self.pool.apply_async(self.compute_Yslm_prec, self.job_list, callback=self.log_results)
-        
-        #for item in self.job_list:
-        #multiple_results = [self.pool.apply_async(self.test_mp, args=(one_mode,), callback=self.log_results) for one_mode in self.job_list]
-        
-        self._result_list = multiple_results
-        
-        
-        self.pool.close()
-        
-        self.pool.join()
-        
-        # results = [job.get() for job in multiple_results]
+            #if __name__ == '__main__':
+
+            multiple_results = self.pool.map(self.compute_Yslm_prec, self.job_list)
+            #multiple_results = self.pool.map(self.test_mp, self.job_list)
+            # launching multiple evaluations asynchronously *may* use more processes
+            #multiple_results = self.pool.apply_async(self.compute_Yslm_prec, self.job_list, callback=self.log_results)
+            
+            #for item in self.job_list:
+            #multiple_results = [self.pool.apply_async(self.test_mp, args=(one_mode,), callback=self.log_results) for one_mode in self.job_list]
+            
+            self._result_list = multiple_results
+            
+            
+            self.pool.close()
+            
+            self.pool.join()
+            
+            # results = [job.get() for job in multiple_results]
+            
+            self.update_cache()
+
+        else:
+            self._result_list = Yslm_prec_grid_mp_cache[self.spin_weight][self.ell_max]
             
     def compute_Yslm_prec(self, mode_number):
         
@@ -144,7 +157,7 @@ class Yslm_prec_grid_mp:
         theta_grid, phi_grid = self.grid_info.meshgrid
         
         return [mode_count, np.array(Yslm_prec_grid(theta_grid=theta_grid, phi_grid=phi_grid, spin_weight=self.spin_weight, ell=ell, emm=emm), dtype=np.complex128)]
-    
+
     
     def test_mp(self, mode_number):
         
@@ -157,3 +170,20 @@ class Yslm_prec_grid_mp:
 
     def __setstate__(self, state):
         self.__dict__.update(state)
+
+    def is_available_in_cache(self):
+        ''' Check if the current parameters are available in cache '''
+        available = False
+
+        if self.spin_weight in Yslm_prec_grid_mp_cache.keys():
+
+            if self.ell_max in Yslm_prec_grid_mp_cache[self.spin_weight].keys():
+                available=True
+
+        return available
+
+    def update_cache(self):
+        ''' Update cache after computation for faster retrieval'''
+
+        Yslm_prec_grid_mp_cache.update({self.spin_weight : {self.ell_max : self.result_list}})
+
