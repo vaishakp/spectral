@@ -3,7 +3,6 @@ import numpy as np
 import math
 from waveformtools.waveformtools import message
 from spectral.spherical.Yslm_prec_grid_mp import Yslm_prec_grid_mp
-from spectral.spherical.swsh import Yslm_vec, Yslm_prec_grid
 
 
 def check_Yslm_args(spin_weight, ell, emm):
@@ -457,14 +456,14 @@ def Yslm_prec_sym(spin_weight, ell, emm):
     return Yslm_expr
 
 
-def realYlm(theta_grid, phi_grid, ell, emm, method='vec', prec=None, grid_info=None, ell_max=None):
+def realYlm(theta_grid, phi_grid, ell, emm, method='vec', prec=None, grid_info=None, ell_max=None, nprocs=4):
     ''' The real spherical harmonics
     
     Parameters 
     ----------
     theta_grid,phi_grid : 2darray
                           The meshgrid of angles
-    ell, emm : int
+    ell, emm : int, >0
                The mode numbers
     method : str
              'vec' for vectorized Yslm computation.
@@ -493,8 +492,13 @@ def realYlm(theta_grid, phi_grid, ell, emm, method='vec', prec=None, grid_info=N
 
         Ylm_calc.run()
 
-        Yl_pm = Ylm_calc.result_list[]
-        Yl_mm = Ylm_calc.result_list[]
+        res_ind_p = ell**2 + emm + ell
+        res_ind_m = ell**2 -emm + ell
+
+
+        Yl_pm = Ylm_calc.result_list[res_ind_p][1]
+        Yl_mm = Ylm_calc.result_list[res_ind_m][1]
+
 
     elif method=='prec_grid':
         Yl_pm = Yslm_prec_grid(theta_grid=theta_grid, phi_grid=phi_grid, spin_weight=spin_weight, ell=ell, emm=emm)

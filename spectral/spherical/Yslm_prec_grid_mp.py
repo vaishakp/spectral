@@ -43,11 +43,13 @@ class Yslm_prec_grid_mp:
         self._spin_weght = spin_weight
         
         self.setup_env()
-        self.initialize()
+        
 
 
         self._job_list = None
         self._result_list = []
+        
+        self.initialize()
         
     @property
     def ell_max(self):
@@ -147,7 +149,7 @@ class Yslm_prec_grid_mp:
 
         else:
             self._result_list = Yslm_prec_grid_mp_cache[self.spin_weight][self.ell_max]
-            
+
     def compute_Yslm_prec(self, mode_number):
         
         
@@ -186,4 +188,3 @@ class Yslm_prec_grid_mp:
         ''' Update cache after computation for faster retrieval'''
 
         Yslm_prec_grid_mp_cache.update({self.spin_weight : {self.ell_max : self.result_list}})
-
