@@ -1,8 +1,8 @@
-from waveformtools.single_mode import SingleMode
-import numpy as np
 from waveformtools.waveformtools import message
-from spectral.spherical.swsh import Yslm_vec
+import numpy as np
 from waveformtools.integrate import TwoDIntegral
+from waveformtools.single_mode import SingleMode
+from spectral.spherical.swsh import Yslm_vec
 
 def CheckRegReq(data):
     """Check if a function requires regularization.

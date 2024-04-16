@@ -4,7 +4,6 @@ import math
 from waveformtools.waveformtools import message
 from spectral.spherical.Yslm_prec_grid_mp import Yslm_prec_grid_mp
 
-
 def check_Yslm_args(spin_weight, ell, emm):
     """Check if the arguments to a Yslm functions
     makes sense
