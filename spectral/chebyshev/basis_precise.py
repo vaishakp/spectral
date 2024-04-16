@@ -1,6 +1,6 @@
 import numpy as np
-from waveformtools.waveformtools import message
 import sympy as sp
+from waveformtools.waveformtools import message
 
 """ Deals with Chebyshev approximations of the first kind """
 

@@ -1,8 +1,11 @@
-import sympy as sp
-import numpy as np
 import math
+
+import numpy as np
+import sympy as sp
 from waveformtools.waveformtools import message
+
 from spectral.spherical.Yslm_prec_grid_mp import Yslm_prec_grid_mp
+
 
 def check_Yslm_args(spin_weight, ell, emm):
     """Check if the arguments to a Yslm functions

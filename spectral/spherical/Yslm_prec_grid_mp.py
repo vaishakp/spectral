@@ -1,10 +1,10 @@
 import multiprocessing
+import os
+from multiprocessing import Pool, TimeoutError, cpu_count
+
+import numpy as np
 from waveformtools.transforms import Yslm_prec_grid
 from waveformtools.waveformtools import message
-import os
-import numpy as np
-from multiprocessing import cpu_count, Pool, TimeoutError
-
 
 Yslm_prec_grid_mp_cache = {}
 
@@ -82,7 +82,7 @@ class Yslm_prec_grid_mp:
     
     def setup_env(self):
 
-        from multiprocessing import cpu_count, Pool, TimeoutError
+        from multiprocessing import Pool, TimeoutError, cpu_count
 
     def get_max_nprocs(self):
         ''' Get the available number of processors on the CPU '''
