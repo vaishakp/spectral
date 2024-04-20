@@ -6,7 +6,6 @@ from waveformtools.waveformtools import message
 
 from spectral.spherical.Yslm_prec_grid_mp import Yslm_prec_grid_mp
 
-
 def check_Yslm_args(spin_weight, ell, emm):
     """Check if the arguments to a Yslm functions
     makes sense
@@ -123,6 +122,7 @@ def check_Yslm_theta(theta_grid, threshold=1e-6):
 
     return theta_list.reshape(np.array(theta_grid).shape)
 
+Yslm_vec_cache = {}
 
 def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid):
     """Spin-weighted spherical harmonics fast evaluations
@@ -150,6 +150,29 @@ def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid):
     ----
     This is accurate upto 14 decimals for L upto 25.
     """
+    ntheta, nphi = theta_grid.shape
+
+    ell_max = ntheta-1
+
+    if spin_weight in Yslm_vec_cache.keys():
+        
+        if ell_max in Yslm_vec_cache[spin_weight].keys():
+
+            if f'l{ell}m{emm}' in Yslm_vec_cache[spin_weight][ell_max].keys():
+                print("Using Yslm cache")
+                return Yslm_vec_cache[spin_weight][ell_max][f'l{ell}m{emm}']
+
+            else:
+                Yslm_vec_cache[spin_weight][ell_max].update({f"l{ell}m{emm}" : None})
+        
+        else:
+            Yslm_vec_cache[spin_weight].update({ell_max : {}})
+            Yslm_vec_cache[spin_weight][ell_max].update({f"l{ell}m{emm}" : None})
+
+    else:
+        Yslm_vec_cache.update({spin_weight : {}})
+        Yslm_vec_cache[spin_weight].update({ell_max : {}})
+        Yslm_vec_cache[spin_weight][ell_max].update({f"l{ell}m{emm}" : None})
 
     check_Yslm_args(spin_weight, ell, emm)
 
@@ -268,6 +291,8 @@ def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid):
                     raise ValueError(
                         "Although theta>1e-14, couldnt compute Yslm. Please check theta"
                     )
+
+    Yslm_vec_cache[spin_weight][ell_max].update({f"l{ell}m{emm}" : value})
 
     return value
 
