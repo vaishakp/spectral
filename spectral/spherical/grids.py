@@ -9,6 +9,7 @@ GLGrid : grid info
          Stores a Gauss-Legendre type grid on a spherical surface.
 """
 
+from enum import property
 import numpy as np
 
 # from numba import jit, njit
@@ -394,6 +395,11 @@ class GLGrid:
 
         self._dphi = dphi  # self._phi_1d[1]
 
+        self._phi_1d_wrapped = np.array(list(self.phi_1d) + [self.phi_1d[-1] + self.dphi] )
+
+        theta_grid_wrapped, phi_grid_wrapped = np.meshgrid(self.theta_1d, self.phi_1d_wrapped)
+        self._meshgrid_wrapped = np.transpose(theta_grid_wrapped), np.transpose(phi_grid_wrapped) 
+
     @property
     def grid_type(self):
 
@@ -528,6 +534,12 @@ class GLGrid:
         return self._phi_1d
 
     @property
+    def phi_1d_wrapped(self):
+        "Returns 1d phi axis including the last element identified with the first "
+
+        return self._phi_1d_wrapped
+
+    @property
     def meshgrid(self):
         """The (:math:`\\theta, \\phi)`: coordinate meshes.
         Excludes the ghost zones.
@@ -543,6 +555,12 @@ class GLGrid:
         """
 
         return self._meshgrid
+
+    @property
+    def meshgrid_wrapped(self):
+        " Return the meshgrid constructed from phi_1d_wrapped "
+
+        return self._meshgrid_wrapped
 
     @property
     def integration_method(self):

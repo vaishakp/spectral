@@ -4,7 +4,6 @@ import numpy as np
 import sympy as sp
 from waveformtools.waveformtools import message
 
-from spectral.spherical.Yslm_prec_grid_mp import Yslm_prec_grid_mp
 
 def check_Yslm_args(spin_weight, ell, emm):
     """Check if the arguments to a Yslm functions
@@ -123,8 +122,7 @@ def check_Yslm_theta(theta_grid, threshold=1e-6):
     return theta_list.reshape(np.array(theta_grid).shape)
 
 Yslm_vec_cache = {}
-
-def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid):
+def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid, cache=True):
     """Spin-weighted spherical harmonics fast evaluations
     on numpy arrays for vectorized evaluations.
 
@@ -150,152 +148,162 @@ def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid):
     ----
     This is accurate upto 14 decimals for L upto 25.
     """
-    ntheta, nphi = theta_grid.shape
 
-    ell_max = ntheta-1
+    if cache:
+        ntheta, nphi = theta_grid.shape
 
-    if spin_weight in Yslm_vec_cache.keys():
-        
-        if ell_max in Yslm_vec_cache[spin_weight].keys():
+        ell_max = ntheta-1
 
-            if f'l{ell}m{emm}' in Yslm_vec_cache[spin_weight][ell_max].keys():
-                print("Using Yslm cache")
-                return Yslm_vec_cache[spin_weight][ell_max][f'l{ell}m{emm}']
+        check_Yslm_args(spin_weight, ell, emm)
 
-            else:
-                Yslm_vec_cache[spin_weight][ell_max].update({f"l{ell}m{emm}" : None})
-        
-        else:
-            Yslm_vec_cache[spin_weight].update({ell_max : {}})
-            Yslm_vec_cache[spin_weight][ell_max].update({f"l{ell}m{emm}" : None})
+        flag = query_Yslm_vec_cache(spin_weight=spin_weight, ell_max=ell_max, ell=ell, emm=emm)
 
     else:
-        Yslm_vec_cache.update({spin_weight : {}})
-        Yslm_vec_cache[spin_weight].update({ell_max : {}})
-        Yslm_vec_cache[spin_weight][ell_max].update({f"l{ell}m{emm}" : None})
+        flag=False
 
-    check_Yslm_args(spin_weight, ell, emm)
+    if flag:
+        return Yslm_vec_cache[spin_weight][ell_max][f'l{ell}m{emm}']
+    
+    else:
+        theta_grid = check_Yslm_theta(theta_grid)
 
-    theta_grid = check_Yslm_theta(theta_grid)
+        from math import comb
 
-    from math import comb
+        fact = math.factorial
 
-    fact = math.factorial
+        theta_grid = np.array(theta_grid)
+        phi_grid = np.array(phi_grid)
 
-    theta_grid = np.array(theta_grid)
-    phi_grid = np.array(phi_grid)
+        Sum = 0 + 1j * 0
 
-    Sum = 0 + 1j * 0
+        factor = 1
+        if spin_weight < 0:
+            factor = (-1) ** ell
+            theta_grid = np.pi - theta_grid
+            phi_grid += np.pi
 
-    factor = 1
-    if spin_weight < 0:
-        factor = (-1) ** ell
-        theta_grid = np.pi - theta_grid
-        phi_grid += np.pi
+        abs_spin_weight = abs(spin_weight)
 
-    abs_spin_weight = abs(spin_weight)
+        for aar in range(0, ell - abs_spin_weight + 1):
+            subterm = 0
 
-    for aar in range(0, ell - abs_spin_weight + 1):
-        subterm = 0
+            if (aar + abs_spin_weight - emm) < 0 or (
+                ell - aar - abs_spin_weight
+            ) < 0:
+                message(f"Skipping r {aar}", message_verbosity=4)
+                continue
+            else:
+                term1 = comb(ell - abs_spin_weight, aar)
+                term2 = comb(ell + abs_spin_weight, aar + abs_spin_weight - emm)
+                term3 = np.power(float(-1), (ell - aar - abs_spin_weight))
+                term4 = np.exp(1j * emm * phi_grid)
+                term5 = np.longdouble(
+                    np.power(
+                        np.tan(theta_grid / 2), (-2 * aar - abs_spin_weight + emm)
+                    )
+                )
+                subterm = term1 * term2 * term3 * term4 * term5
 
-        if (aar + abs_spin_weight - emm) < 0 or (
-            ell - aar - abs_spin_weight
-        ) < 0:
-            message(f"Skipping r {aar}", message_verbosity=4)
-            continue
-        else:
-            term1 = comb(ell - abs_spin_weight, aar)
-            term2 = comb(ell + abs_spin_weight, aar + abs_spin_weight - emm)
-            term3 = np.power(float(-1), (ell - aar - abs_spin_weight))
-            term4 = np.exp(1j * emm * phi_grid)
-            term5 = np.longdouble(
-                np.power(
-                    np.tan(theta_grid / 2), (-2 * aar - abs_spin_weight + emm)
+                Sum += subterm
+
+        Yslmv = float(-1) ** emm * (
+            np.sqrt(
+                np.longdouble(fact(ell + emm))
+                * np.longdouble(fact(ell - emm))
+                * (2 * ell + 1)
+                / (
+                    4
+                    * np.pi
+                    * np.longdouble(fact(ell + abs_spin_weight))
+                    * np.longdouble(fact(ell - abs_spin_weight))
                 )
             )
-            subterm = term1 * term2 * term3 * term4 * term5
-
-            Sum += subterm
-
-    Yslmv = float(-1) ** emm * (
-        np.sqrt(
-            np.longdouble(fact(ell + emm))
-            * np.longdouble(fact(ell - emm))
-            * (2 * ell + 1)
-            / (
-                4
-                * np.pi
-                * np.longdouble(fact(ell + abs_spin_weight))
-                * np.longdouble(fact(ell - abs_spin_weight))
-            )
-        )
-        * np.sin(theta_grid / 2) ** (2 * ell)
-        * Sum
-    )
-
-    value = factor * Yslmv
-
-    if np.isnan(np.array(value)).any():
-        message(
-            "Nan discovered. Falling back to Yslm_prec on defaulted locations",
-            message_verbosity=1,
+            * np.sin(theta_grid / 2) ** (2 * ell)
+            * Sum
         )
 
-        nan_locs = np.where(np.isnan(np.array(value).flatten()))[0]
-
-        message("Nan locations", nan_locs, message_verbosity=1)
-
-        theta_list = np.array(theta_grid).flatten()
-        phi_list = np.array(phi_grid).flatten()
-
-        message("Theta values", theta_list[nan_locs], message_verbosity=1)
-
-        value_list = np.array(value, dtype=np.complex128).flatten()
-
-        for index in nan_locs:
-            replaced_value = Yslm_prec(
-                spin_weight=spin_weight,
-                theta=theta_list[index],
-                phi=phi_list[index],
-                ell=ell,
-                emm=emm,
-            )
-
-            value_list[index] = replaced_value
-
-        value = np.array(value_list).reshape(theta_grid.shape)
-
-        message("nan corrected", value, message_verbosity=1)
+        value = factor * Yslmv
 
         if np.isnan(np.array(value)).any():
             message(
-                "Nan re discovered. Falling back to Yslm_prec_grid",
+                "Nan discovered. Falling back to Yslm_prec on defaulted locations",
                 message_verbosity=1,
             )
 
-            value = np.complex128(
-                Yslm_prec_grid(
-                    spin_weight, ell, emm, theta_grid, phi_grid, prec=16
+            nan_locs = np.where(np.isnan(np.array(value).flatten()))[0]
+
+            message("Nan locations", nan_locs, message_verbosity=1)
+
+            theta_list = np.array(theta_grid).flatten()
+            phi_list = np.array(phi_grid).flatten()
+
+            message("Theta values", theta_list[nan_locs], message_verbosity=1)
+
+            value_list = np.array(value, dtype=np.complex128).flatten()
+
+            for index in nan_locs:
+                replaced_value = Yslm_prec(
+                    spin_weight=spin_weight,
+                    theta=theta_list[index],
+                    phi=phi_list[index],
+                    ell=ell,
+                    emm=emm,
                 )
-            )
+
+                value_list[index] = replaced_value
+
+            value = np.array(value_list).reshape(theta_grid.shape)
+
+            message("nan corrected", value, message_verbosity=1)
 
             if np.isnan(np.array(value)).any():
-                if (abs(np.array(theta_grid)) < 1e-14).any():
-                    # print("!!! Warning: setting to zero manually. Please check again !!!")
-                    # value = 0
-                    raise ValueError(
-                        f"Possible zero value encountered due to small theta {np.amin(theta_grid)}"
+                message(
+                    "Nan re discovered. Falling back to Yslm_prec_grid",
+                    message_verbosity=1,
+                )
+
+                value = np.complex128(
+                    Yslm_prec_grid(
+                        spin_weight, ell, emm, theta_grid, phi_grid, prec=16
                     )
+                )
 
-                else:
-                    raise ValueError(
-                        "Although theta>1e-14, couldnt compute Yslm. Please check theta"
-                    )
+                if np.isnan(np.array(value)).any():
+                    if (abs(np.array(theta_grid)) < 1e-14).any():
+                        # print("!!! Warning: setting to zero manually. Please check again !!!")
+                        # value = 0
+                        raise ValueError(
+                            f"Possible zero value encountered due to small theta {np.amin(theta_grid)}"
+                        )
 
-    Yslm_vec_cache[spin_weight][ell_max].update({f"l{ell}m{emm}" : value})
+                    else:
+                        raise ValueError(
+                            "Although theta>1e-14, couldnt compute Yslm. Please check theta"
+                        )
 
-    return value
+        if cache:
+            Yslm_vec_cache[spin_weight][ell_max].update({f"l{ell}m{emm}" : value})
 
+        return value
+
+            
+def query_Yslm_vec_cache(spin_weight, ell_max, ell, emm):
+                    
+    flag = False
+                    
+    if spin_weight not in Yslm_vec_cache.keys():
+        Yslm_vec_cache.update({spin_weight : {}})
+    
+    if ell_max not in Yslm_vec_cache[spin_weight].keys():
+        Yslm_vec_cache[spin_weight].update({ell_max : {}})
+    
+    if f'l{ell}m{emm}' not in Yslm_vec_cache[spin_weight][ell_max].keys():
+        Yslm_vec_cache[spin_weight][ell_max].update({f"l{ell}m{emm}" : None})
+
+        return False
+      
+    else:
+        return True
 
 def Yslm_prec_grid(spin_weight, ell, emm, theta_grid, phi_grid, prec=24):
     """Spin-weighted spherical harmonics function with precise computations
@@ -505,7 +513,9 @@ def realYlm(theta_grid, phi_grid, ell, emm, method='vec', prec=None, grid_info=N
               The real spin weight 0 spherical harmonics as defined on wikipedia.
 
 
-     '''
+    '''
+    from spectral.spherical.Yslm_prec_grid_mp import Yslm_prec_grid_mp
+    
     spin_weight = 0
 
     if method == 'vec':
