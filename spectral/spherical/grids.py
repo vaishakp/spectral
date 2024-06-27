@@ -9,7 +9,7 @@ GLGrid : grid info
          Stores a Gauss-Legendre type grid on a spherical surface.
 """
 
-from enum import property
+#from enum import property
 import numpy as np
 
 # from numba import jit, njit
