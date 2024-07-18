@@ -559,3 +559,107 @@ def realYlm(theta_grid, phi_grid, ell, emm, method='vec', prec=None, grid_info=N
 
 
     return reYlm
+
+
+def create_Yslm_modes_array(theta, phi, spin_weight, ell_max):
+    ''' Create a modes array containing the sYlm modes at the given 
+    values theta and phi 
+
+    Parameters
+    ----------    
+    theta, phi: float
+                The angular points to evaluate at.
+
+    spin_weight: int
+                 The spin-weight of the SWSH
+
+    ell_max: int
+             The mode number upto which to evaluate
+
+ 
+    Returns
+    -------
+    sYlm_modes: SingleMode
+                A modes array contining the requested modes.
+
+    '''
+    from waveformtools.single_mode import SingleMode
+    from waveformtools.dataIO import construct_mode_list
+
+    modes_list = construct_mode_list(spin_weight=spin_weight, ell_max=ell_max)
+
+    sYlm_modes = SingleMode(ell_max=ell_max, 
+                            spin_weight=spin_weight,
+                            )
+
+    for ell, emm_list in modes_list:
+        for emm in emm_list:
+            Ylm = Yslm_vec(spin_weight=spin_weight, 
+                           theta_grid=theta, 
+                           phi_grid=phi, 
+                           ell=ell, 
+                           emm=emm, 
+                           cache=False)
+                    
+            sYlm_modes.set_mode_data(ell, emm, Ylm)
+
+
+    return sYlm_modes
+
+
+def get_spherical_Yslm_index(ell, emm):
+    ind = 0
+    for ell_ind in range(ell + 1):
+        ind += 2 * ell_ind + 1
+
+    return ind + emm - ell_ind - 1
+    
+    
+def create_spherical_Yslm_modes_array(theta, phi, spin_weight, ell_max):
+    ''' Create a modes array containing the sYlm modes at the given 
+    values theta and phi 
+
+    Parameters
+    ----------    
+    theta, phi: float
+                The angular points to evaluate at.
+
+    spin_weight: int
+                 The spin-weight of the SWSH
+
+    ell_max: int
+             The mode number upto which to evaluate
+
+ 
+    Returns
+    -------
+    sYlm_modes: SingleMode
+                A modes array contining the requested modes.
+
+    '''
+    from waveformtools.single_mode import SingleMode
+    from waveformtools.dataIO import construct_mode_list
+
+    modes_list = construct_mode_list(spin_weight=spin_weight, ell_max=ell_max)
+
+    sYlm_modes = SingleMode(ell_max=ell_max, 
+                            spin_weight=spin_weight,
+                            )
+
+    import quaternionic, spherical
+
+    R = quaternionic.array.from_spherical_coordinates(theta, phi)
+    # ell_max = ell
+
+    wigner = spherical.Wigner(ell_max)
+
+    Y2 = wigner.sYlm(spin_weight, R)
+
+    for ell, emm_list in modes_list:
+        for emm in emm_list:
+
+            ind = get_spherical_Yslm_index(ell, emm)
+
+            sYlm_modes.set_mode_data(ell, emm, Y2[ind])
+
+    return sYlm_modes
