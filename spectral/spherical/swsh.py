@@ -639,27 +639,21 @@ def create_spherical_Yslm_modes_array(theta, phi, spin_weight, ell_max):
     '''
     from waveformtools.single_mode import SingleMode
     from waveformtools.dataIO import construct_mode_list
-
+    import quaternionic, spherical
+    
     modes_list = construct_mode_list(spin_weight=spin_weight, ell_max=ell_max)
 
     sYlm_modes = SingleMode(ell_max=ell_max, 
                             spin_weight=spin_weight,
                             )
-
-    import quaternionic, spherical
-
     R = quaternionic.array.from_spherical_coordinates(theta, phi)
-    # ell_max = ell
-
     wigner = spherical.Wigner(ell_max)
-
     Y2 = wigner.sYlm(spin_weight, R)
 
     for ell, emm_list in modes_list:
         for emm in emm_list:
-
+            #print(type(ell), ell, type(emm), emm)
             ind = get_spherical_Yslm_index(ell, emm)
-
-            sYlm_modes.set_mode_data(ell, emm, Y2[ind])
+            sYlm_modes.set_mode_data(ell=ell, emm=emm, value=Y2[ind])
 
     return sYlm_modes

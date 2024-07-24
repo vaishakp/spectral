@@ -4,7 +4,7 @@ from waveformtools.single_mode import SingleMode
 from waveformtools.waveformtools import message
 from waveformtools.dataIO import construct_mode_list
 from spectral.spherical.swsh import Yslm_vec
-
+from spectral.spherical.Yslm_mp import Yslm_mp
 
 def CheckRegReq(data):
     """Check if a function requires regularization.
@@ -86,8 +86,6 @@ def SHExpand(
         )
 
     if info.grid_type == "GL" and method_info.swsh_routine=='spherepack':
-        
-        
         message("Using SpherePack routine...")
 
         results = SHExpandSpack(func,
@@ -99,9 +97,7 @@ def SHExpand(
                 reg_order=reg_order,)
 
     elif method_info.swsh_routine=='waveformtools':
-
         message("Using waveformtools routine...")
-
         if auto_ell_max:
             message(
                 "Using SHExpandAuto: "
@@ -109,7 +105,6 @@ def SHExpand(
                 " ell_max",
                 message_verbosity=2,
             )
-
             results = SHExpandAuto(
                 func,
                 info,
@@ -127,7 +122,6 @@ def SHExpand(
                 f" ell_max {method_info.ell_max}",
                 message_verbosity=2,
             )
-
             results = SHExpandSimple(
                 func, info, method_info, err_info, reg=reg, reg_order=reg_order
             )
@@ -435,33 +429,33 @@ def SHExpandSimple(
 
     Parameters
     ----------
-    func : ndarray
-           The function to be expanded.
-    info : Grid
-           An instance of the Spherical grid class
-           that stores the details of the structure
-           of a grid on a topological sphere.
-    method_info : MethodInfo
-                  An instance of the method info
-                  class that contains informations
-                  about the numerical methods
-                  to be used during the following
-                  operations.
-    err_info : bool
-               Whether or not to compute and return
-               the error measures related to the
-               SH representation.
+    func: ndarray
+          The function to be expanded.
+    grid_info: Grid
+               An instance of the Spherical grid class
+               that stores the details of the structure
+               of a grid on a topological sphere.
+    method_info: MethodInfo
+                 An instance of the method info
+                 class that contains informations
+                 about the numerical methods
+                 to be used during the following
+                 operations.
+    err_info: bool
+              Whether or not to compute and return
+              the error measures related to the
+              SH representation.
 
-    check_reg : list, optional
-                A list of two integers (0,1)
-                that depicts whether or not to
-                regularize the input function
-                at the poles.
+    check_reg: list, optional
+               A list of two integers (0,1)
+               that depicts whether or not to
+               regularize the input function
+               at the poles.
 
     Returns
     -------
-    modes : dict
-            The modes as a dictionary whose keys are lm.
+    modes: dict
+           The modes as a dictionary whose keys are lm.
 
     Notes
     -----
@@ -495,26 +489,15 @@ def SHExpandSimple(
 
 
     result = SingleMode(ell_max=ell_max)
-    recon_func = np.zeros(func.shape, dtype=np.complex128)
 
-    for ell in range(ell_max + 1):
-        emm_list = np.arange(-ell, ell + 1)
+    cYslm = Yslm_mp(ell_max=ell_max, spin_weight=0, grid_info=grid_info)
+    cYslm.run()
+        
+    integrand = cYslm.sYlm_modes._modes_data * func
 
-        for emm in emm_list:
-            Ylm = Yslm_vec(
-                spin_weight=0,
-                emm=emm,
-                ell=ell,
-                theta_grid=theta_grid,
-                phi_grid=phi_grid,
-            )
-
-            integrand = func * np.conjugate(Ylm)
-            check_nan(integrand)
-            Clm = TwoDIntegral(integrand, grid_info, int_method=int_method)
-            recon_func += Clm * Ylm
-            # message("Clm ", Clm, message_verbosity=2)
-            result.set_mode_data(ell, emm, Clm)
+    Clm = TwoDIntegral(integrand, grid_info, int_method=int_method)
+            
+    result.set_mode_data(Clm)
 
     result._Grid = grid_info
 
@@ -558,21 +541,28 @@ def ComputeErrorInfo(result,
     modes obj '''
 
     from waveformtools.diagnostics import RMSerrs
-
+    from spectral.spherical.Yslm_mp import Yslm_mp
+                     
     theta_grid, phi_grid = grid_info.meshgrid
-
     recon_func = np.zeros(grid_info.shape, dtype=np.complex128)
-
-    Rerr, Amin, Amax = RMSerrs(orig_func, recon_func, grid_info)
-
+    reg_recon_func = np.zeros(grid_info.shape, dtype=np.complex128)
+    Rerr, Amin, Amax = RMSerrs(orig_func, recon_func, grid_info)                 
     all_res = [Rerr]
-
+                     
+    sYlm = Yslm_mp(ell_max=ell_max, 
+                        spin_weight=0, 
+                        theta=theta_grid, 
+                        phi=phi_grid)
+    sYlm.run()
+    Ylm_vec = sYlm.sYlm_modes._modes_data.transpose((1, 2, 0))
+    _, _, modes_data_len = Ylm_vec.shape
+    val_vec = result._modes_data[:modes_data_len]*Ylm_vec
 
     for ell in range(ell_max+1):
-        
-        recon_func += SHContractEllWftools(modes=result, 
-                                    grid_info=grid_info, 
-                                    ell=ell)
+
+        modes_idx_prev = ell**2
+        modes_idx = (ell+1)**2
+        reg_recon_func += np.sum(val_vec[:, :, modes_idx_prev:modes_idx], axis=(2))
 
         # Deregularize 
         if reg:
@@ -584,20 +574,18 @@ def ComputeErrorInfo(result,
                     message_verbosity=2,
                 )
 
-                recon_func = SHDeRegularize(recon_func, 
+                recon_func = SHDeRegularize(reg_recon_func, 
                                             theta_grid, 
                                             check_reg, 
                                             order=reg_order)
 
-
+        else:
+            recon_func = reg_recon_func
 
         Rerr, Amin, Amax = RMSerrs(orig_func, recon_func, grid_info)
-
         all_res.append(Rerr)
     
-    
     err_info_dict = {"RMS": Rerr, "Amin": Amin, "Amax": Amax}
-
     result.error_info = err_info_dict
     result.residuals = all_res
     result.residual_axis = np.arange(-1, ell_max + 1)

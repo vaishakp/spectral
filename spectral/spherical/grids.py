@@ -404,7 +404,7 @@ class GLGrid:
     def grid_type(self):
 
         return self._grid_type
-
+    
     def nphi(self):
         """Return the total number of gridpoints
         along the phi direction, including
