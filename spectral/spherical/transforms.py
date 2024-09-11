@@ -683,11 +683,11 @@ def modes_spack_to_wftools(spack_modes, grid_info, err_info, ell_max):
             tmp_mode = ((-1)**emm) * (this_spack_mode_pm)
 
             wf_mode = tmp_mode*factor 
-            wf_modes.set_mode_data(ell, emm, wf_mode)
+            # message(f"l {ell}, m{emm}")
+            wf_modes.set_mode_data(ell=ell, emm=emm, value=wf_mode)
            
         for emm in range(-ell, 0):
-            
-            wf_modes.set_mode_data(ell, emm, np.conjugate(wf_mode))
+            wf_modes.set_mode_data(ell=ell, emm=emm, value=np.conjugate(wf_mode))
 
     
     return wf_modes
