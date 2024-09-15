@@ -639,27 +639,40 @@ def create_spherical_Yslm_modes_array(theta, phi, spin_weight, ell_max):
     '''
     from waveformtools.single_mode import SingleMode
     from waveformtools.dataIO import construct_mode_list
-
+    import quaternionic, spherical
+    
     modes_list = construct_mode_list(spin_weight=spin_weight, ell_max=ell_max)
 
-    sYlm_modes = SingleMode(ell_max=ell_max, 
-                            spin_weight=spin_weight,
-                            )
+    if isinstance(theta, float):
+        sYlm_modes = SingleMode(ell_max=ell_max, 
+                                spin_weight=spin_weight,
+                                )
+        
+        message("Created a modes array of mode axis length 0", message_verbosity=2)
 
-    import quaternionic, spherical
+    elif isinstance(theta, np.ndarray):
+        sYlm_modes = SingleMode(ell_max=ell_max, 
+                                spin_weight=spin_weight,
+                                extra_mode_axis_shape=theta.shape
+                                )
+        
+        message(f"Created a modes array of mode axis shape {theta.shape}", message_verbosity=2)
+
+    #message(f"Created modes axis shape is {sYlm_modes._modes_data.shape}")
 
     R = quaternionic.array.from_spherical_coordinates(theta, phi)
-    # ell_max = ell
-
     wigner = spherical.Wigner(ell_max)
-
     Y2 = wigner.sYlm(spin_weight, R)
+
+    #message(f"Y2 shape {Y2.shape}")
 
     for ell, emm_list in modes_list:
         for emm in emm_list:
-
+            #print(type(ell), ell, type(emm), emm)
             ind = get_spherical_Yslm_index(ell, emm)
 
-            sYlm_modes.set_mode_data(ell, emm, Y2[ind])
+            #message(f"Y2 ind shape {Y2[ind].shape}")
+            
+            sYlm_modes.set_mode_data(ell=ell, emm=emm, value=Y2.T[ind].T)
 
     return sYlm_modes
