@@ -125,6 +125,20 @@ def SHExpand(
             results = SHExpandSimple(
                 func, info, method_info, err_info, reg=reg, reg_order=reg_order
             )
+    elif method_info.swsh_routine=='waveformtools_slow':
+        results = SHExpandSimpleSlow(
+                func, info, method_info, err_info, reg=reg, reg_order=reg_order
+            )
+    elif method_info.swsh_routine=='spherical':
+        results = SHExpandSpherical(func,
+                info,
+                method_info,
+                err_info,
+                res_tol_percent,
+                reg,
+                reg_order=reg_order,)
+    else:
+        raise NotImplementedError(f"Unknown SWSH method {method_info.swsh_routine}")
 
     return results
 
@@ -487,13 +501,12 @@ def SHExpandSimple(
             message("Regularizing function", message_verbosity=2)
             func = SHRegularize(func, theta_grid, check_reg, order=reg_order)
 
-
     result = SingleMode(ell_max=ell_max)
 
     cYslm = Yslm_mp(ell_max=ell_max, spin_weight=0, grid_info=grid_info)
     cYslm.run()
         
-    integrand = cYslm.sYlm_modes._modes_data * func
+    integrand = np.conjugate(cYslm.sYlm_modes._modes_data) * func
 
     Clm = TwoDIntegral(integrand, grid_info, int_method=int_method)
             
@@ -520,15 +533,138 @@ def SHExpandSimple(
     
     return result
 
+def SHExpandSimpleSlow(
+    func,
+    grid_info,
+    method_info,
+    err_info=False,
+    reg=False,
+    reg_order=1,
+    check_reg=None,
+):
+    """Expand a given function in spin weight 0 spherical harmonics
+    upto a user prescribed :math:`\\ell_{max}`.
+
+    Additionally, if requested, this routine can:
+
+    1. regularize a function and expand and return the
+       modes of the regularized function and the associated
+       regularization details.
+    2. Compute diagnostic information in terms of residue
+       per mode.
+    3. The RMS deviation of the reconstructed expansion from the
+       original function.
+
+
+    Parameters
+    ----------
+    func : ndarray
+           The function to be expanded.
+    info : Grid
+           An instance of the Spherical grid class
+           that stores the details of the structure
+           of a grid on a topological sphere.
+    method_info : MethodInfo
+                  An instance of the method info
+                  class that contains informations
+                  about the numerical methods
+                  to be used during the following
+                  operations.
+    err_info : bool
+               Whether or not to compute and return
+               the error measures related to the
+               SH representation.
+
+    check_reg : list, optional
+                A list of two integers (0,1)
+                that depicts whether or not to
+                regularize the input function
+                at the poles.
+
+    Returns
+    -------
+    modes : dict
+            The modes as a dictionary whose keys are lm.
+
+    Notes
+    -----
+    When regularization is requested,
+        1. To compute the total RMS deviation,
+           the orginal form is used.
+        2. To compute the rms deviation per mode,
+           regularized expression is used.
+
+
+    """
+    import sys
+
+    orig_func = func.copy()
+    theta_grid, phi_grid = grid_info.meshgrid
+    ell_max = method_info.ell_max
+    int_method = method_info.int_method
+
+    message(
+        f"SHExpandSimple: expansion ell max is {ell_max}", message_verbosity=3
+    )
+
+    # Check if regularization necessary
+    if reg:
+        if check_reg is None:
+            check_reg = CheckRegReq(func)
+
+        if np.array(check_reg).any() > 0:
+            message("Regularizing function", message_verbosity=2)
+            func = SHRegularize(func, theta_grid, check_reg, order=reg_order)
+
+    result = SingleMode(ell_max=ell_max)
+    recon_func = np.zeros(func.shape, dtype=np.complex128)
+
+    for ell in range(ell_max + 1):
+        emm_list = np.arange(-ell, ell + 1)
+
+        for emm in emm_list:
+            Ylm = Yslm_vec(
+                spin_weight=0,
+                emm=emm,
+                ell=ell,
+                theta_grid=theta_grid,
+                phi_grid=phi_grid,
+            )
+
+            integrand = func * np.conjugate(Ylm)
+            check_nan(integrand)
+            Clm = TwoDIntegral(integrand, grid_info, int_method=int_method)
+            recon_func += Clm * Ylm
+            # message("Clm ", Clm, message_verbosity=2)
+            result.set_mode_data(ell=ell, emm=emm, value=Clm)
+
+    result._Grid = grid_info
+
+    if reg:
+        result.reg_order = reg_order
+        result.reg_details = check_reg
+
+    else:
+        result.reg_order = 0
+        result.reg_details = "NA"
+        
+    if err_info:
+        result = ComputeErrorInfo(result, 
+                                  orig_func, 
+                                  grid_info,
+                                  ell_max,
+                                  reg,
+                                  check_reg,
+                                  reg_order)
+    
+    return result
+
 def check_nan(data):
     ''' Check for nans in data.'''
-
     uu = np.isnan(data.any())
     
     if uu:
         raise ValueError("Nan found!")
-    
-
 
 def ComputeErrorInfo(result,
                      orig_func, 
@@ -538,7 +674,8 @@ def ComputeErrorInfo(result,
                      check_reg, 
                      reg_order):
     ''' Compute the RMS errors of an expansion and add to the 
-    modes obj '''
+    modes obj. This uses wftools optimized SWSH computation 
+    by default. '''
 
     from waveformtools.diagnostics import RMSerrs
     from spectral.spherical.Yslm_mp import Yslm_mp
@@ -546,25 +683,30 @@ def ComputeErrorInfo(result,
     theta_grid, phi_grid = grid_info.meshgrid
     recon_func = np.zeros(grid_info.shape, dtype=np.complex128)
     reg_recon_func = np.zeros(grid_info.shape, dtype=np.complex128)
+
+    # Compute the full RMS deviation from zero
     Rerr, Amin, Amax = RMSerrs(orig_func, recon_func, grid_info)                 
     all_res = [Rerr]
-                     
+
+    # Compute and cache SHs                 
     sYlm = Yslm_mp(ell_max=ell_max, 
                         spin_weight=0, 
                         theta=theta_grid, 
                         phi=phi_grid)
     sYlm.run()
+
+    # Compute unsummed vetor product
     Ylm_vec = sYlm.sYlm_modes._modes_data.transpose((1, 2, 0))
     _, _, modes_data_len = Ylm_vec.shape
     val_vec = result._modes_data[:modes_data_len]*Ylm_vec
 
+    # Compute powers
     for ell in range(ell_max+1):
-
         modes_idx_prev = ell**2
         modes_idx = (ell+1)**2
         reg_recon_func += np.sum(val_vec[:, :, modes_idx_prev:modes_idx], axis=(2))
 
-        # Deregularize 
+        # Deregularize if necessary
         if reg:
             if np.array(check_reg).any() > 0:
                 message(
@@ -574,6 +716,7 @@ def ComputeErrorInfo(result,
                     message_verbosity=2,
                 )
 
+                print("Dereg func")
                 recon_func = SHDeRegularize(reg_recon_func, 
                                             theta_grid, 
                                             check_reg, 
@@ -582,6 +725,7 @@ def ComputeErrorInfo(result,
         else:
             recon_func = reg_recon_func
 
+        # Compute RMS deviation upto this ell
         Rerr, Amin, Amax = RMSerrs(orig_func, recon_func, grid_info)
         all_res.append(Rerr)
     
@@ -590,11 +734,11 @@ def ComputeErrorInfo(result,
     result.residuals = all_res
     result.residual_axis = np.arange(-1, ell_max + 1)
 
-    if Rerr > 0.1:
-        message("Residue warning!", message_verbosity=0)
+    conv = round(100*Rerr/all_res[0],2)
+    if conv > 10:
+        message(f"{conv}% Residue warning! ", message_verbosity=0)
 
     return result
-
 
 def SHExpandSpack(func,
                   grid_info,
@@ -602,7 +746,8 @@ def SHExpandSpack(func,
                   err_info,
                   res_tol_percent,
                   reg,
-                  reg_order):
+                  reg_order,
+                  check_reg=None):
     ''' Expand using spherepack. 
     Please note that this is only useful for 
     expanding real functions !! 
@@ -613,14 +758,12 @@ def SHExpandSpack(func,
 
     from spharm import Spharmt
 
-    
     nlats = (grid_info.L+1)
     nlons = 2*nlats
 
     theta_grid, _ = grid_info.meshgrid
 
     xcls = Spharmt(nlons,nlats,legfunc='computed', gridtype='gaussian')
-
 
     # Check if regularization necessary
     if reg:
@@ -648,6 +791,75 @@ def SHExpandSpack(func,
 
     return result
 
+def SHExpandSpherical(func,
+                  grid_info,
+                  method_info,
+                  err_info,
+                  res_tol_percent,
+                  reg,
+                  reg_order=1,
+                  check_reg=None):
+    ''' Expand using spherical package. 
+    '''
+
+    orig_func = func.copy()
+    theta_grid, phi_grid = grid_info.meshgrid
+    ell_max = method_info.ell_max
+    int_method = method_info.int_method
+
+    message(
+        f"SHExpandSimpleSpherical: expansion ell max is {ell_max}", message_verbosity=3
+    )
+
+    result = SingleMode(ell_max=ell_max)
+
+    from spectral.spherical.swsh import create_spherical_Yslm_modes_array
+
+    theta_grid, _ = grid_info.meshgrid
+
+    # Check if regularization necessary
+    if reg:
+        if check_reg is None:
+            check_reg = CheckRegReq(func)
+
+        if np.array(check_reg).any() > 0:
+            message("Regularizing function", message_verbosity=2)
+            func = SHRegularize(func, theta_grid, check_reg, order=reg_order)
+
+    
+    sYlm = create_spherical_Yslm_modes_array(theta=theta_grid, 
+                                phi=phi_grid, 
+                                ell_max=ell_max,
+                                spin_weight=0)
+    
+    integrand = np.conjugate(sYlm._modes_data) * func
+
+    Clm = TwoDIntegral(integrand, grid_info, int_method=int_method)
+            
+    result.set_mode_data(Clm)
+
+    result._Grid = grid_info
+
+    if reg:
+        result.reg_order = reg_order
+        result.reg_details = check_reg
+
+    else:
+        result.reg_order = 0
+        result.reg_details = "NA"
+
+    if err_info:
+        result = ComputeErrorInfo(result, 
+                                  func, 
+                                  grid_info,
+                                  grid_info.L,
+                                  reg,
+                                  check_reg,
+                                  reg_order
+
+        )
+
+    return result
 
 def modes_spack_to_wftools(spack_modes, grid_info, err_info, ell_max):
     ''' Convert the modes in spherepack conventaion to modes 
@@ -662,6 +874,8 @@ def modes_spack_to_wftools(spack_modes, grid_info, err_info, ell_max):
                           Grid=grid_info
                           )
     
+    factor = np.sqrt(2*np.pi)
+
     for ell, emm_list in modes_list:
         for emm in range(0, ell+1):
         #for emm in np.array(emm_list):
@@ -669,27 +883,19 @@ def modes_spack_to_wftools(spack_modes, grid_info, err_info, ell_max):
             spack_ind = get_spack_mode_index(ell, emm, ell_max)
             this_spack_mode_pm = spack_modes[spack_ind]
             this_spack_mode_mm = np.conjugate(this_spack_mode_pm)
-
-            if emm==0:
-                factor = np.sqrt(2*np.pi)
-
-                tmp_mode = this_spack_mode_pm
-
-            else:
-                factor = np.sqrt(8*np.pi)
-
-           
+            #if emm==0:
+            #    factor = np.sqrt(2*np.pi)
+                #tmp_mode = this_spack_mode_pm
+            #else:
+            #    factor = np.sqrt(2*np.pi)
             #tmp_mode = ((-1)**emm) * (this_spack_mode_pm + 1j*this_spack_mode_mm)#/np.sqrt(2)
             tmp_mode = ((-1)**emm) * (this_spack_mode_pm)
 
-            wf_mode = tmp_mode*factor 
+            wf_mode = tmp_mode*factor
             # message(f"l {ell}, m{emm}")
             wf_modes.set_mode_data(ell=ell, emm=emm, value=wf_mode)
-           
-        for emm in range(-ell, 0):
-            wf_modes.set_mode_data(ell=ell, emm=emm, value=np.conjugate(wf_mode))
+            wf_modes.set_mode_data(ell=ell, emm=-emm, value=(-1)**emm * np.conjugate(wf_mode))
 
-    
     return wf_modes
 
 
