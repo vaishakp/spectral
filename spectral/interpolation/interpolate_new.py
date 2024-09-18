@@ -1,5 +1,8 @@
+from joblib import Parallel
 from mpi4py import MPI
 import numpy as np
+
+from parallellib.parallel_mpi import ParallelClassTemplate
 from waveformtools.waveformtools import flatten, message, unsort
 from spectral.spherical.grids import GLGrid
 from waveformtools.diagnostics import method_info
@@ -22,7 +25,7 @@ from qlmtools.sxs.transforms import (
 import time
 
 
-class Interpolate3D:
+class Interpolate3D(ParallelClassTemplate):
     """Interpolate any field on a spectral grid of
     type (GaussLegendre X Chebyshev) onto a requested
     set of points.
@@ -135,10 +138,6 @@ class Interpolate3D:
         self._saved_interpolant_file = saved_interpolant_file
         self._axis_rotation_angles = None
 
-        # MPI
-        self._mpi_rank = None
-        self._mpi_nprocs = None
-
         # Setup engine
         self.initialize_parallel_engine()
         self.pre_setup()
@@ -215,18 +214,6 @@ class Interpolate3D:
         return self._raw_data
 
     @property
-    def mpi_rank(self):
-        return self._mpi_rank
-
-    @property
-    def mpi_nprocs(self):
-        return self._mpi_nprocs
-
-    @property
-    def mpi_comm(self):
-        return self._mpi_comm
-
-    @property
     def interpolant(self):
         """The unevaluated spectral interpolant"""
         return self._interpolant
@@ -297,28 +284,9 @@ class Interpolate3D:
     def axis_rotation_angles(self):
         return self._axis_rotation_angles
 
-    def print_root(self, *args, **kwargs):
-        """A print statement for the MPI root"""
-
-        if self.mpi_rank == 0:
-            message(*args, **kwargs)
-
     ####################################
     # Initialize
     ####################################
-
-    def initialize_parallel_engine(self):
-        """Initialize the parallel compute engine
-        components for interpolation"""
-
-        self._mpi_comm = MPI.COMM_WORLD
-
-        self._mpi_nprocs = self.mpi_comm.Get_size()
-        self._mpi_rank = self.mpi_comm.Get_rank()
-
-        self.print_root(
-            f"Engine using {self.mpi_nprocs} processors", message_verbosity=1
-        )
 
     def pre_setup(self):
         """Setup the angluar, radial spectral grid and
