@@ -465,7 +465,7 @@ class GLGrid:
 
     @property
     def dphi(self):
-        """Return the uniform angular stepping in :math:`\phi` direction"""
+        """Return the uniform angular stepping in :math:`\\phi` direction"""
         return self._dphi
 
     @property

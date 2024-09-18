@@ -111,6 +111,8 @@ class Yslm_mp:
     def cache(self):
         return self._cache
 
+    def mode(self, ell, emm):
+        return self.sYlm_modes.mode(ell, emm)
 
     def setup_env(self):
         ''' Imports '''
