@@ -6,55 +6,57 @@ from waveformtools.waveformtools import message
 
 
 class Yslm_full_vec:
-    ''' A container to compute the SWSH, 
-    vectorized over the mode numbers as well 
-    '''
+    """A container to compute the SWSH,
+    vectorized over the mode numbers as well
+    """
 
-    def __init__(self,
-                 spin_weight=0,
-                 Grid,
-                 ell_max):
-        
+    def __init__(
+        self,
+        Grid,
+        ell_max,
+        spin_weight=0,
+    ):
+
         self._spin_weight = spin_weight
         self._Grid = Grid
         self._ell_max = ell_max
 
-        assert spin_weight==0, "This has only been implemented for spin_weight 0"
-
+        assert (
+            spin_weight == 0
+        ), "This has only been implemented for spin_weight 0"
 
     @property
     def Grid(self):
         return self._Grid
-    
+
     @property
     def ell_max(self):
         return self._ell_max
-    
+
     @property
     def modes_grid(self):
         return self._modes_grid
-    
+
     @property
     def spin_weight(self):
         return self._spin_weight
-    
+
     @property
     def n_ells(self):
         return self._n_ells
 
     def construct_modes_grid(self):
-        ''' Get grid modes in ell,emm for 
-        vectorization over modes '''
+        """Get grid modes in ell,emm for
+        vectorization over modes"""
 
-        ell_grid = np.array((self.ell_max+1)*[np.arange(self.ell_max+1)])
+        ell_grid = np.array((self.ell_max + 1) * [np.arange(self.ell_max + 1)])
 
         meta_emm_grid = ell_grid.T
 
-
-        for row_index in range(1, self.ell_max+1):
+        for row_index in range(1, self.ell_max + 1):
             for col_index in range(row_index):
-            
-                meta_emm_grid[row_index, col_index] = -row_index + col_index 
+
+                meta_emm_grid[row_index, col_index] = -row_index + col_index
 
         self._modes_grid = ell_grid, meta_emm_grid
 
@@ -64,9 +66,11 @@ class Yslm_full_vec:
 
         ntheta, nphi = theta_grid.shape
 
-        ell_max = ntheta-1
+        ell_max = ntheta - 1
 
-        assert ell_max>= self.ell_max, "The current grid does not support the requested ell_max"
+        assert (
+            ell_max >= self.ell_max
+        ), "The current grid does not support the requested ell_max"
 
         theta_grid = check_Yslm_theta(theta_grid)
 
@@ -77,7 +81,10 @@ class Yslm_full_vec:
         theta_grid = np.array(theta_grid)
         phi_grid = np.array(phi_grid)
 
-        Sum = np.zeros((self.ell_max+1, self.ell_max+1, ntheta, nphi), dtype=np.complex256)
+        Sum = np.zeros(
+            (self.ell_max + 1, self.ell_max + 1, ntheta, nphi),
+            dtype=np.complex256,
+        )
 
         factor = 1
 
@@ -103,7 +110,8 @@ class Yslm_full_vec:
                 term4 = np.exp(1j * emm * phi_grid)
                 term5 = np.longdouble(
                     np.power(
-                        np.tan(theta_grid / 2), (-2 * aar - abs_spin_weight + emm)
+                        np.tan(theta_grid / 2),
+                        (-2 * aar - abs_spin_weight + emm),
                     )
                 )
                 subterm = term1 * term2 * term3 * term4 * term5
@@ -185,6 +193,6 @@ class Yslm_full_vec:
                             "Although theta>1e-14, couldnt compute Yslm. Please check theta"
                         )
 
-        Yslm_vec_cache[spin_weight][ell_max].update({f"l{ell}m{emm}" : value})
+        Yslm_vec_cache[spin_weight][ell_max].update({f"l{ell}m{emm}": value})
 
         return value

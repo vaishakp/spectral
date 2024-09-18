@@ -10,10 +10,10 @@ from waveformtools.waveformtools import message
 
 
 class Yslm_mp:
-    ''' Evaluate the spin weighted spherical harmonics 
-    asynchronously on multiple processors at any precision 
-    required 
-    
+    """Evaluate the spin weighted spherical harmonics
+    asynchronously on multiple processors at any precision
+    required
+
     Attributes
     ----------
     ell_max : int
@@ -27,27 +27,29 @@ class Yslm_mp:
            harmonics.
     nprocs : int
              The number of processors to use. Defaults to half the available.
-    '''
+    """
 
     _Yslm_mp_cache = {}
-    
-    def __init__(self,
-                 ell_max=6,
-                 grid_info=None,
-                 prec=16,
-                 nprocs=None,
-                 spin_weight=0,
-                 theta=None,
-                 phi=None,
-                 cache=False):
-        
+
+    def __init__(
+        self,
+        ell_max=6,
+        grid_info=None,
+        prec=16,
+        nprocs=None,
+        spin_weight=0,
+        theta=None,
+        phi=None,
+        cache=False,
+    ):
+
         self._ell_max = ell_max
         self._grid_info = grid_info
         self._prec = prec
         self._nprocs = nprocs
         self._spin_weight = spin_weight
         self._cache = cache
-            
+
         if grid_info is None:
             if theta is None and phi is None:
                 raise KeyError("Please specify the grid, or theta and phi")
@@ -55,8 +57,10 @@ class Yslm_mp:
                 self._theta = theta
                 self._phi = phi
         else:
-            if grid_info.grid_type!='GL':
-                raise TypeError("Caching is only currently supported for Gauss-Legendre type grids")
+            if grid_info.grid_type != "GL":
+                raise TypeError(
+                    "Caching is only currently supported for Gauss-Legendre type grids"
+                )
 
             self._cache = True
             self._theta, self._phi = grid_info.meshgrid
@@ -64,41 +68,39 @@ class Yslm_mp:
         self.setup_env()
         self._job_list = None
         self._result_list = []
-        
-        
-        
+
     @property
     def ell_max(self):
         return self._ell_max
-    
+
     @property
     def prec(self):
         return self._prec
-    
+
     @property
     def grid_info(self):
         return self._grid_info
-    
+
     @property
     def nprocs(self):
         return self._nprocs
-    
+
     @property
     def spin_weight(self):
         return self._spin_weight
-    
+
     @property
     def job_list(self):
         return self._job_list
-    
+
     @property
     def result_list(self):
         return self._result_list
-    
+
     @property
     def theta(self):
         return self._theta
-    
+
     @property
     def phi(self):
         return self._phi
@@ -106,7 +108,7 @@ class Yslm_mp:
     @property
     def sYlm_modes(self):
         return self._sYlm_modes
-    
+
     @property
     def cache(self):
         return self._cache
@@ -115,47 +117,44 @@ class Yslm_mp:
         return self.sYlm_modes.mode(ell, emm)
 
     def setup_env(self):
-        ''' Imports '''
+        """Imports"""
         from multiprocessing import Pool, TimeoutError, cpu_count
 
     def get_max_nprocs(self):
-        ''' Get the available number of processors on the system '''\
-        
+        """Get the available number of processors on the system"""
         max_ncpus = cpu_count()
         return max_ncpus
-    
+
     def create_job_list(self):
-        ''' Create a list of jobs (modes) for distributing
-            computing to different processors '''
-                
+        """Create a list of jobs (modes) for distributing
+        computing to different processors"""
+
         job_list = []
-        
+
         mode_count = 0
-        for ell in range(self.ell_max+1):
-            for emm in range(-ell, ell+1):
+        for ell in range(self.ell_max + 1):
+            for emm in range(-ell, ell + 1):
                 job_list.append([mode_count, ell, emm])
-                mode_count+=1
-                
+                mode_count += 1
+
         self._job_list = job_list
-        
+
     def log_results(self, result):
-        ''' Save result to memory '''
+        """Save result to memory"""
         self._result_list.append(result)
-        
-        
+
     def initialize(self):
-        ''' Initialize the workers / pool '''
+        """Initialize the workers / pool"""
 
         if self.nprocs is None:
             max_ncpus = self.get_max_nprocs()
-            self._nprocs = int(max_ncpus/2)
+            self._nprocs = int(max_ncpus / 2)
 
         self.create_job_list()
         self.pool = multiprocessing.Pool(processes=self.nprocs)
-        
-        
+
     def run(self):
-        ''' Compute the SHSHs, cache results, and create modes '''
+        """Compute the SHSHs, cache results, and create modes"""
 
         if not self.is_available_in_cache():
             self.initialize()
@@ -166,80 +165,83 @@ class Yslm_mp:
             self.store_as_modes()
             self.update_cache()
             self.pool.close()
-            
-        else:
-            self._sYlm_modes = self._Yslm_mp_cache[self.spin_weight][self.ell_max]
 
-        
+        else:
+            self._sYlm_modes = self._Yslm_mp_cache[self.spin_weight][
+                self.ell_max
+            ]
 
     def compute_Yslm(self, task):
-        ''' Compute the SHSH for the given mode number '''
-        
-        mode_count, ell, emm = task
-        return [mode_count, 
-                np.array(
-                            Yslm(theta_grid=self.theta, 
-                                 phi_grid=self.phi, 
-                                 spin_weight=self.spin_weight, 
-                                 ell=ell, 
-                                 emm=emm), 
-                            dtype=np.complex128
-                        )
-                ]
+        """Compute the SHSH for the given mode number"""
 
-    
+        mode_count, ell, emm = task
+        return [
+            mode_count,
+            np.array(
+                Yslm(
+                    theta_grid=self.theta,
+                    phi_grid=self.phi,
+                    spin_weight=self.spin_weight,
+                    ell=ell,
+                    emm=emm,
+                ),
+                dtype=np.complex128,
+            ),
+        ]
+
     def test_mp(self, mode_number):
-        ''' Print a simple test output message '''
+        """Print a simple test output message"""
         print(f"This is process {os.getpid()} processing mode {mode_number}\n")
         return 1
 
     def __getstate__(self):
-        ''' Refresh Pool state '''
+        """Refresh Pool state"""
         self_dict = self.__dict__.copy()
-        del self_dict['pool']
+        del self_dict["pool"]
         return self_dict
 
     def __setstate__(self, state):
-        ''' Set Pool state '''
+        """Set Pool state"""
         self.__dict__.update(state)
 
     def is_available_in_cache(self):
-        ''' Check if the current parameters are available in cache '''
+        """Check if the current parameters are available in cache"""
 
         availability = False
-    
+
         if not self.cache:
             return availability
 
-        else:        
+        else:
             if self.spin_weight in self._Yslm_mp_cache.keys():
                 if self.ell_max in self._Yslm_mp_cache[self.spin_weight].keys():
-                    availability=True
+                    availability = True
 
             return availability
 
     def update_cache(self):
-        ''' Update cache after computation for faster retrieval'''
+        """Update cache after computation for faster retrieval"""
 
         if self.cache:
-            self._Yslm_mp_cache.update({self.spin_weight : {self.ell_max : self._sYlm_modes}})
-
+            self._Yslm_mp_cache.update(
+                {self.spin_weight: {self.ell_max: self._sYlm_modes}}
+            )
 
     def store_as_modes(self):
-        ''' Store the results as modes '''
+        """Store the results as modes"""
 
-        self._sYlm_modes = SingleMode(ell_max=self.ell_max,
-                                spin_weight=self.spin_weight
-                                ) 
-        
+        self._sYlm_modes = SingleMode(
+            ell_max=self.ell_max, spin_weight=self.spin_weight
+        )
+
         mode_nums = [item[0] for item in self.result_list]
         mode_vals = [item[1] for item in self.result_list]
         diffs = np.diff(mode_nums)
-        
-        if not (diffs==1).all():
+
+        if not (diffs == 1).all():
             message("Sorting the results!")
             args_order = np.argsort(mode_nums)
             mode_vals = np.array(mode_vals)[args_order]
 
         self._sYlm_modes._modes_data = np.array(mode_vals)
-        #self.__sYlm_modes._extra_mode_axis_shape = theta
+        # self.__sYlm_modes._extra_mode_axis_shape = theta

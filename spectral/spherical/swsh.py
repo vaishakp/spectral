@@ -121,7 +121,10 @@ def check_Yslm_theta(theta_grid, threshold=1e-6):
 
     return theta_list.reshape(np.array(theta_grid).shape)
 
+
 Yslm_vec_cache = {}
+
+
 def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid, cache=True):
     """Spin-weighted spherical harmonics fast evaluations
     on numpy arrays for vectorized evaluations.
@@ -152,18 +155,20 @@ def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid, cache=True):
     if cache:
         ntheta, nphi = theta_grid.shape
 
-        ell_max = ntheta-1
+        ell_max = ntheta - 1
 
         check_Yslm_args(spin_weight, ell, emm)
 
-        flag = query_Yslm_vec_cache(spin_weight=spin_weight, ell_max=ell_max, ell=ell, emm=emm)
+        flag = query_Yslm_vec_cache(
+            spin_weight=spin_weight, ell_max=ell_max, ell=ell, emm=emm
+        )
 
     else:
-        flag=False
+        flag = False
 
     if flag:
-        return Yslm_vec_cache[spin_weight][ell_max][f'l{ell}m{emm}']
-    
+        return Yslm_vec_cache[spin_weight][ell_max][f"l{ell}m{emm}"]
+
     else:
         theta_grid = check_Yslm_theta(theta_grid)
 
@@ -199,7 +204,8 @@ def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid, cache=True):
                 term4 = np.exp(1j * emm * phi_grid)
                 term5 = np.longdouble(
                     np.power(
-                        np.tan(theta_grid / 2), (-2 * aar - abs_spin_weight + emm)
+                        np.tan(theta_grid / 2),
+                        (-2 * aar - abs_spin_weight + emm),
                     )
                 )
                 subterm = term1 * term2 * term3 * term4 * term5
@@ -282,28 +288,31 @@ def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid, cache=True):
                         )
 
         if cache:
-            Yslm_vec_cache[spin_weight][ell_max].update({f"l{ell}m{emm}" : value})
+            Yslm_vec_cache[spin_weight][ell_max].update(
+                {f"l{ell}m{emm}": value}
+            )
 
         return value
 
-            
+
 def query_Yslm_vec_cache(spin_weight, ell_max, ell, emm):
-                    
+
     flag = False
-                    
+
     if spin_weight not in Yslm_vec_cache.keys():
-        Yslm_vec_cache.update({spin_weight : {}})
-    
+        Yslm_vec_cache.update({spin_weight: {}})
+
     if ell_max not in Yslm_vec_cache[spin_weight].keys():
-        Yslm_vec_cache[spin_weight].update({ell_max : {}})
-    
-    if f'l{ell}m{emm}' not in Yslm_vec_cache[spin_weight][ell_max].keys():
-        Yslm_vec_cache[spin_weight][ell_max].update({f"l{ell}m{emm}" : None})
+        Yslm_vec_cache[spin_weight].update({ell_max: {}})
+
+    if f"l{ell}m{emm}" not in Yslm_vec_cache[spin_weight][ell_max].keys():
+        Yslm_vec_cache[spin_weight][ell_max].update({f"l{ell}m{emm}": None})
 
         return False
-      
+
     else:
         return True
+
 
 def Yslm_prec_grid(spin_weight, ell, emm, theta_grid, phi_grid, prec=24):
     """Spin-weighted spherical harmonics function with precise computations
@@ -491,10 +500,20 @@ def Yslm_prec_sym(spin_weight, ell, emm):
     return Yslm_expr
 
 
-def realYlm(theta_grid, phi_grid, ell, emm, method='vec', prec=None, grid_info=None, ell_max=None, nprocs=4):
-    ''' The real spherical harmonics
-    
-    Parameters 
+def realYlm(
+    theta_grid,
+    phi_grid,
+    ell,
+    emm,
+    method="vec",
+    prec=None,
+    grid_info=None,
+    ell_max=None,
+    nprocs=4,
+):
+    """The real spherical harmonics
+
+    Parameters
     ----------
     theta_grid,phi_grid : 2darray
                           The meshgrid of angles
@@ -502,71 +521,99 @@ def realYlm(theta_grid, phi_grid, ell, emm, method='vec', prec=None, grid_info=N
                The mode numbers
     method : str
              'vec' for vectorized Yslm computation.
-             'prec_grid' for precise Yslm computation. 
+             'prec_grid' for precise Yslm computation.
              'prec_grid_mp' for precise, parallel computation
-             of Yslm. Also specify the precision alongwith for 
+             of Yslm. Also specify the precision alongwith for
              precise computations.
-    
+
     Returns
     -------
     realYlm : 2darray
               The real spin weight 0 spherical harmonics as defined on wikipedia.
 
 
-    '''
+    """
     from spectral.spherical.Yslm_prec_grid_mp import Yslm_prec_grid_mp
-    
+
     spin_weight = 0
 
-    if method == 'vec':
-        Yl_pm = Yslm_vec(theta_grid=theta_grid, phi_grid=phi_grid, spin_weight=spin_weight, ell=ell, emm=emm)
-        Yl_mm = Yslm_vec(theta_grid=theta_grid, phi_grid=phi_grid, spin_weight=spin_weight, ell=ell, emm=-emm)
+    if method == "vec":
+        Yl_pm = Yslm_vec(
+            theta_grid=theta_grid,
+            phi_grid=phi_grid,
+            spin_weight=spin_weight,
+            ell=ell,
+            emm=emm,
+        )
+        Yl_mm = Yslm_vec(
+            theta_grid=theta_grid,
+            phi_grid=phi_grid,
+            spin_weight=spin_weight,
+            ell=ell,
+            emm=-emm,
+        )
 
-    elif method == 'prec_grid_mp':
-        
+    elif method == "prec_grid_mp":
 
-        Ylm_calc = Yslm_prec_grid_mp(ell_max=ell_max, grid_info=grid_info, nprocs=None, spin_weight=0, prec=prec)
+        Ylm_calc = Yslm_prec_grid_mp(
+            ell_max=ell_max,
+            grid_info=grid_info,
+            nprocs=None,
+            spin_weight=0,
+            prec=prec,
+        )
 
         Ylm_calc.run()
 
         res_ind_p = ell**2 + emm + ell
-        res_ind_m = ell**2 -emm + ell
-
+        res_ind_m = ell**2 - emm + ell
 
         Yl_pm = Ylm_calc.result_list[res_ind_p][1]
         Yl_mm = Ylm_calc.result_list[res_ind_m][1]
 
-
-    elif method=='prec_grid':
-        Yl_pm = Yslm_prec_grid(theta_grid=theta_grid, phi_grid=phi_grid, spin_weight=spin_weight, ell=ell, emm=emm)
-        Yl_mm = Yslm_prec_grid(theta_grid=theta_grid, phi_grid=phi_grid, spin_weight=spin_weight, ell=ell, emm=-emm)
+    elif method == "prec_grid":
+        Yl_pm = Yslm_prec_grid(
+            theta_grid=theta_grid,
+            phi_grid=phi_grid,
+            spin_weight=spin_weight,
+            ell=ell,
+            emm=emm,
+        )
+        Yl_mm = Yslm_prec_grid(
+            theta_grid=theta_grid,
+            phi_grid=phi_grid,
+            spin_weight=spin_weight,
+            ell=ell,
+            emm=-emm,
+        )
 
     else:
-        raise KeyError(f"The requested method {method} not found. The available methods are:\n"
-                        "\t 'vec' for vectorized Yslm computation.\n"
-                        "\t 'prec_grid' for precise Yslm computation. \n"
-                        "\t 'prec_grid_mp' for precise, parallel computation \n"
-                        "\t of Yslm. Also specify the precision alongwith for \n"
-                        "\t precise computations.")
-    
-    if emm<0:
-        reYlm = (1j/np.sqrt(2))* (Yl_pm - (-1)**(emm) * Yl_mm)
-    elif emm==0:
+        raise KeyError(
+            f"The requested method {method} not found. The available methods are:\n"
+            "\t 'vec' for vectorized Yslm computation.\n"
+            "\t 'prec_grid' for precise Yslm computation. \n"
+            "\t 'prec_grid_mp' for precise, parallel computation \n"
+            "\t of Yslm. Also specify the precision alongwith for \n"
+            "\t precise computations."
+        )
+
+    if emm < 0:
+        reYlm = (1j / np.sqrt(2)) * (Yl_pm - (-1) ** (emm) * Yl_mm)
+    elif emm == 0:
         reYlm = Yl_pm
-    
-    else:
-        reYlm = (1/np.sqrt(2))* (Yl_mm + (-1)**(emm) * Yl_pm)
 
+    else:
+        reYlm = (1 / np.sqrt(2)) * (Yl_mm + (-1) ** (emm) * Yl_pm)
 
     return reYlm
 
 
 def create_Yslm_modes_array(theta, phi, spin_weight, ell_max):
-    ''' Create a modes array containing the sYlm modes at the given 
-    values theta and phi 
+    """Create a modes array containing the sYlm modes at the given
+    values theta and phi
 
     Parameters
-    ----------    
+    ----------
     theta, phi: float
                 The angular points to evaluate at.
 
@@ -576,33 +623,35 @@ def create_Yslm_modes_array(theta, phi, spin_weight, ell_max):
     ell_max: int
              The mode number upto which to evaluate
 
- 
+
     Returns
     -------
     sYlm_modes: SingleMode
                 A modes array contining the requested modes.
 
-    '''
+    """
     from waveformtools.single_mode import SingleMode
     from waveformtools.dataIO import construct_mode_list
 
     modes_list = construct_mode_list(spin_weight=spin_weight, ell_max=ell_max)
 
-    sYlm_modes = SingleMode(ell_max=ell_max, 
-                            spin_weight=spin_weight,
-                            )
+    sYlm_modes = SingleMode(
+        ell_max=ell_max,
+        spin_weight=spin_weight,
+    )
 
     for ell, emm_list in modes_list:
         for emm in emm_list:
-            Ylm = Yslm_vec(spin_weight=spin_weight, 
-                           theta_grid=theta, 
-                           phi_grid=phi, 
-                           ell=ell, 
-                           emm=emm, 
-                           cache=False)
-                    
-            sYlm_modes.set_mode_data(ell, emm, Ylm)
+            Ylm = Yslm_vec(
+                spin_weight=spin_weight,
+                theta_grid=theta,
+                phi_grid=phi,
+                ell=ell,
+                emm=emm,
+                cache=False,
+            )
 
+            sYlm_modes.set_mode_data(ell, emm, Ylm)
 
     return sYlm_modes
 
@@ -613,14 +662,14 @@ def get_spherical_Yslm_index(ell, emm):
         ind += 2 * ell_ind + 1
 
     return ind + emm - ell_ind - 1
-    
-    
+
+
 def create_spherical_Yslm_modes_array(theta, phi, spin_weight, ell_max):
-    ''' Create a modes array containing the sYlm modes at the given 
-    values theta and phi 
+    """Create a modes array containing the sYlm modes at the given
+    values theta and phi
 
     Parameters
-    ----------    
+    ----------
     theta, phi: float
                 The angular points to evaluate at.
 
@@ -630,49 +679,56 @@ def create_spherical_Yslm_modes_array(theta, phi, spin_weight, ell_max):
     ell_max: int
              The mode number upto which to evaluate
 
- 
+
     Returns
     -------
     sYlm_modes: SingleMode
                 A modes array contining the requested modes.
 
-    '''
+    """
     from waveformtools.single_mode import SingleMode
     from waveformtools.dataIO import construct_mode_list
     import quaternionic, spherical
-    
+
     modes_list = construct_mode_list(spin_weight=spin_weight, ell_max=ell_max)
 
     if isinstance(theta, float):
-        sYlm_modes = SingleMode(ell_max=ell_max, 
-                                spin_weight=spin_weight,
-                                )
-        
-        message("Created a modes array of mode axis length 0", message_verbosity=2)
+        sYlm_modes = SingleMode(
+            ell_max=ell_max,
+            spin_weight=spin_weight,
+        )
+
+        message(
+            "Created a modes array of mode axis length 0", message_verbosity=2
+        )
 
     elif isinstance(theta, np.ndarray):
-        sYlm_modes = SingleMode(ell_max=ell_max, 
-                                spin_weight=spin_weight,
-                                extra_mode_axis_shape=theta.shape
-                                )
-        
-        message(f"Created a modes array of mode axis shape {theta.shape}", message_verbosity=2)
+        sYlm_modes = SingleMode(
+            ell_max=ell_max,
+            spin_weight=spin_weight,
+            extra_mode_axis_shape=theta.shape,
+        )
 
-    #message(f"Created modes axis shape is {sYlm_modes._modes_data.shape}")
+        message(
+            f"Created a modes array of mode axis shape {theta.shape}",
+            message_verbosity=2,
+        )
+
+    # message(f"Created modes axis shape is {sYlm_modes._modes_data.shape}")
 
     R = quaternionic.array.from_spherical_coordinates(theta, phi)
     wigner = spherical.Wigner(ell_max)
     Y2 = wigner.sYlm(spin_weight, R)
 
-    #message(f"Y2 shape {Y2.shape}")
+    # message(f"Y2 shape {Y2.shape}")
 
     for ell, emm_list in modes_list:
         for emm in emm_list:
-            #print(type(ell), ell, type(emm), emm)
+            # print(type(ell), ell, type(emm), emm)
             ind = get_spherical_Yslm_index(ell, emm)
 
-            #message(f"Y2 ind shape {Y2[ind].shape}")
-            
+            # message(f"Y2 ind shape {Y2[ind].shape}")
+
             sYlm_modes.set_mode_data(ell=ell, emm=emm, value=Y2.T[ind].T)
 
     return sYlm_modes
