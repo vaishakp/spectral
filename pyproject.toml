@@ -24,7 +24,7 @@ path = "spectral/__init__.py"
 
 [project]
 name = "spectral"
-dynamic = ['version']
+dynamic = ['dependencies', 'optional-dependencies', 'version']
 authors = [{ name="Vaishak Prasad", email="vaishakprasad@gmail.com"}, ]
 description = " Numerical implementation of various spectral methods "
 readme = "README.md"
@@ -34,18 +34,10 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dependencies = ["numpy",
-	"scipy",
-	"matplotlib",
-	"numba",
-	"termcolor",
-	"datetime",
-	"numpydoc",
-    ]
-#    "config@git+https://gitlab.com/vaishakp/config"]
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+optional-dependencies = {ext = { file = ["optional-requirements.txt"] }}
 
-[project.optional-dependencies]
-EXT = []
 
 [project.urls]
 "Homepage" = "https://gitlab.com/vaishakp/spectral"
