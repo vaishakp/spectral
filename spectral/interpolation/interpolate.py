@@ -331,10 +331,13 @@ class Interpolate3D:
             "L grid of expansion", self.input_ang_grid.L, message_verbosity=2
         )
 
-        self._method_info = method_info(ell_max=self.input_ang_grid.L, int_method="GL")
+        self._method_info = method_info(
+            ell_max=self.input_ang_grid.L, int_method="GL"
+        )
 
         self.print_root(
-            f"method info ell max {self.method_info.ell_max}", message_verbosity=3
+            f"method info ell max {self.method_info.ell_max}",
+            message_verbosity=3,
         )
 
         self._radial_grid = ChebyshevSpectral(
@@ -342,7 +345,8 @@ class Interpolate3D:
         )
 
         self.print_root(
-            "Created Chebyshev radial grid" f"with Nfuncs {self.radial_grid.Nfuncs}\n",
+            "Created Chebyshev radial grid"
+            f"with Nfuncs {self.radial_grid.Nfuncs}\n",
             f"Shape of radial collocation points \
                 {self.radial_grid.collocation_points_logical.shape}",
             message_verbosity=3,
@@ -382,7 +386,9 @@ class Interpolate3D:
 
                     # xcom, ycom, zcom = self.coord_centers
 
-                    sphp_output_grid.append(ToSphericalPolar([X, Y, Z], coord_centers))
+                    sphp_output_grid.append(
+                        ToSphericalPolar([X, Y, Z], coord_centers)
+                    )
 
             self._sphp_output_grid = sphp_output_grid
 
@@ -405,7 +411,9 @@ class Interpolate3D:
         ang_data = self.raw_data[r_index, :, :]
 
         local_one_set_modes = SHExpand(
-            func=ang_data, method_info=self.method_info, info=self.input_ang_grid
+            func=ang_data,
+            method_info=self.method_info,
+            info=self.input_ang_grid,
         )
 
         return local_one_set_modes
@@ -415,16 +423,22 @@ class Interpolate3D:
         collocation point at one time step in SH"""
 
         self.print_root(
-            "t_step inside ang exp at t and r index", t_step, message_verbosity=4
+            "t_step inside ang exp at t and r index",
+            t_step,
+            message_verbosity=4,
         )
         self.print_root(
-            "r_index inside ang exp at t and r index", r_index, message_verbosity=4
+            "r_index inside ang exp at t and r index",
+            r_index,
+            message_verbosity=4,
         )
 
         ang_data = self.raw_data[t_step, r_index, :, :]
 
         local_one_set_modes = SHExpand(
-            func=ang_data, method_info=self.method_info, info=self.input_ang_grid
+            func=ang_data,
+            method_info=self.method_info,
+            info=self.input_ang_grid,
         )
 
         return local_one_set_modes
@@ -435,7 +449,9 @@ class Interpolate3D:
 
         this_r_modes_local = get_radial_clms(self._modes_r_ordered, ell, emm)
 
-        this_Clmr = self.radial_grid.MatrixPhysToSpec @ np.array(this_r_modes_local)
+        this_Clmr = self.radial_grid.MatrixPhysToSpec @ np.array(
+            this_r_modes_local
+        )
 
         message(f" This Clmr l{ell}, m{emm}", this_Clmr, message_verbosity=4)
 
@@ -459,7 +475,9 @@ class Interpolate3D:
         # message(f"Local r modes at t_step {t_step} rank {self.mpi_comm.rank} len",
         #        len(this_r_modes_local), message_verbosity=2)
 
-        this_Clmr = self.radial_grid.MatrixPhysToSpec @ np.array(this_r_modes_local)
+        this_Clmr = self.radial_grid.MatrixPhysToSpec @ np.array(
+            this_r_modes_local
+        )
 
         message(f" This Clmr l{ell}, m{emm}", this_Clmr, message_verbosity=4)
 
@@ -483,12 +501,15 @@ class Interpolate3D:
 
         modes_r_ordered = self.mpi_comm.bcast(modes_r_ordered, root=0)
 
-        self.print_root("Synchronizing before assigining modes r ", message_verbosity=3)
+        self.print_root(
+            "Synchronizing before assigining modes r ", message_verbosity=3
+        )
 
         self.mpi_comm.Barrier()
 
         self.print_root(
-            "Finished synchronizing before assigining modes r ", message_verbosity=3
+            "Finished synchronizing before assigining modes r ",
+            message_verbosity=3,
         )
 
         self._modes_r_ordered = modes_r_ordered
@@ -512,14 +533,18 @@ class Interpolate3D:
 
         """
 
-        message("modes r t set list", Clm_modes_r_t_flat_list, message_verbosity=4)
+        message(
+            "modes r t set list", Clm_modes_r_t_flat_list, message_verbosity=4
+        )
 
         n_r = self.shape[1]
 
         message(f"Fectching all Clm modes at time step {t_step}")
 
         Clm_modes_r_list_at_given_t_step = [
-            item for item in Clm_modes_r_t_flat_list if int(item[0] / n_r) == t_step
+            item
+            for item in Clm_modes_r_t_flat_list
+            if int(item[0] / n_r) == t_step
         ]
 
         # modes_Clmr_set_list_at_given_t_step = [
@@ -611,8 +636,10 @@ class Interpolate3D:
             for t_step in range(n_t):
                 # Get all the Clm modes on all shells at a particular
                 # t_step
-                Clm_modes_r_flat_list_at_given_t_step = self.get_Clm_modes_at_t_step(
-                    t_step, Clm_modes_t_r_flat_list
+                Clm_modes_r_flat_list_at_given_t_step = (
+                    self.get_Clm_modes_at_t_step(
+                        t_step, Clm_modes_t_r_flat_list
+                    )
                 )
 
                 self.print_root(
@@ -627,7 +654,9 @@ class Interpolate3D:
                 )
 
                 self.print_root(
-                    "job id set at t step", jobid_set_t_step, message_verbosity=4
+                    "job id set at t step",
+                    jobid_set_t_step,
+                    message_verbosity=4,
                 )
 
                 # Get shell numbers at this t_step
@@ -638,7 +667,9 @@ class Interpolate3D:
                 # jobid_set%(t_step*self.shape[1])
 
                 self.print_root(
-                    f"r_ind_set at t slice {t_step}", r_ind_set, message_verbosity=4
+                    f"r_ind_set at t slice {t_step}",
+                    r_ind_set,
+                    message_verbosity=4,
                 )
 
                 # t_ind_set = [item[1] for item in modes_r_set]
@@ -654,7 +685,9 @@ class Interpolate3D:
                     for index in r_modes_order
                 ]
 
-                reordered_Clm_modes_t_r_flat_list.append(Clm_modes_r_ordered_at_t_step)
+                reordered_Clm_modes_t_r_flat_list.append(
+                    Clm_modes_r_ordered_at_t_step
+                )
 
         else:
             reordered_Clm_modes_t_r_flat_list = None
@@ -665,15 +698,20 @@ class Interpolate3D:
             reordered_Clm_modes_t_r_flat_list, root=0
         )
 
-        self.print_root("Synchronizing before assigining modes r ", message_verbosity=3)
+        self.print_root(
+            "Synchronizing before assigining modes r ", message_verbosity=3
+        )
 
         self.mpi_comm.Barrier()
 
         self.print_root(
-            "Finished synchronizing before assigining modes r ", message_verbosity=3
+            "Finished synchronizing before assigining modes r ",
+            message_verbosity=3,
         )
 
-        self._reordered_Clm_modes_t_r_flat_list = reordered_Clm_modes_t_r_flat_list
+        self._reordered_Clm_modes_t_r_flat_list = (
+            reordered_Clm_modes_t_r_flat_list
+        )
 
     def assign_Clmr_to_modes(self, modes_Clmr_list_group):
         """Create a SingleMode object from the gathered
@@ -733,7 +771,9 @@ class Interpolate3D:
         modes_Clmr_t_flat_list = flatten(modes_Clmr_t_grouped_list)
 
         message(
-            "Flattened Clmr vs time list", modes_Clmr_t_flat_list, message_verbosity=4
+            "Flattened Clmr vs time list",
+            modes_Clmr_t_flat_list,
+            message_verbosity=4,
         )
 
         # modes_array_list = []
@@ -783,7 +823,11 @@ class Interpolate3D:
                 )
 
                 self._interpolant.set_mode_data_at_t_step(
-                    t_step=t_step, time_stamp=t_step, ell=ell, emm=emm, data=mode_data
+                    t_step=t_step,
+                    time_stamp=t_step,
+                    ell=ell,
+                    emm=emm,
+                    data=mode_data,
                 )
 
                 self.print_root(
@@ -799,7 +843,7 @@ class Interpolate3D:
         # return modes_Clmr
 
         # self._interpolant = Clmrt
-    
+
     def order_Clmrt_list_in_time(self, modes_Clmr_t_flat_list):
         """Order the segments in time. This takes in a flattened list
         of all segments at all times and angular coords.
@@ -825,8 +869,7 @@ class Interpolate3D:
         )
 
         return time_ordered_segments
-    
-    
+
     def order_Clmr_list_in_ell_emm(self, this_seg_data):
         """Order elements in angles at a given
         segment. The input is a flattened list of
@@ -838,45 +881,42 @@ class Interpolate3D:
 
         # this_seg_data = [item for item in seg_results if item[0]==seg_num]
         ell_max = self.method_info.ell_max
-        
+
         # _, ntheta, nphi = self.input_data_shape
 
         time_indices = [item[0] for item in this_seg_data]
-        
+
         # print("Time indices", time_indices)
-        
-        
+
         ell_indices = [item[1] for item in this_seg_data]
         ell_ind_order = np.argsort(ell_indices)
 
-        
         ell_ordered_this_seg_data = np.array(this_seg_data)[ell_ind_order]
 
         ell_ind_ordered = [item[1] for item in ell_ordered_this_seg_data]
-        
+
         # print("Theta indices", theta_ind_ordered)
-        
-        
+
         ordered_data_segment = []
 
         # Get time segment length
         # lnt = len(ell_ordered_this_seg_data[0][3])
 
-        #message(
+        # message(
         #    "This theta ord data shape",
         #    theta_ordered_this_seg_data.shape,
         #    message_verbosity=2,
-        #)
-        #message(
+        # )
+        # message(
         #    "This theta ord data shape[0]",
         #    theta_ordered_this_seg_data[0][3].shape,
         #    message_verbosity=2,
-        #)
+        # )
 
         # ordered_data_segment = np.zeros((lnt, ntheta, nphi), dtype=np.complex128)
 
-        for ell_ind in range(ell_max+1):
-            
+        for ell_ind in range(ell_max + 1):
+
             this_ell_data = [
                 item for item in ell_ordered_this_seg_data if item[1] == ell_ind
             ]
@@ -888,73 +928,77 @@ class Interpolate3D:
             emm_ind_order = np.argsort(emm_indices)
 
             emm_ordered_data = np.array(this_ell_data)[emm_ind_order]
-            
+
             emm_indices_ordered = [item[2] for item in emm_ordered_data]
-            
+
             # print("Phi ordered indices", phi_indices_ordered)
-            
+
             emm_ordered_data = np.array(
                 [this_ell_data[ind][3] for ind in emm_ind_order]
             )
 
-            #message(
+            # message(
             #    "phi ordered data len at a particular theta len",
             #    len(phi_ordered_data),
             #    message_verbosity=3,
-            #)
+            # )
 
-            #message("Its shape", np.array(phi_ordered_data).shape, message_verbosity=4)
+            # message("Its shape", np.array(phi_ordered_data).shape, message_verbosity=4)
 
             # single_ordered_data = np.array(phi_ordered_data[:, 3])
             single_ordered_data = np.array(emm_ordered_data)
 
-            #message(
+            # message(
             #    "Single data entry shape",
             #    np.array(single_ordered_data).shape,
             #    message_verbosity=4,
-            #)
-            #message(
+            # )
+            # message(
             #    "Single data entry shape 0 ",
             #    single_ordered_data[0].shape,
             #    message_verbosity=4,
-            #)
-            #message(
+            # )
+            # message(
             #    "Single data entry type ",
             #    type(single_ordered_data),
             #    message_verbosity=4,
-            #)
-            #message(
+            # )
+            # message(
             #    "Single data entry type 0",
             #    type(single_ordered_data[0]),
             #    message_verbosity=4,
-            #)
+            # )
 
-            #message(
+            # message(
             #    "Single data entry dtype ",
             #    single_ordered_data.dtype,
             #    message_verbosity=4,
-            #)
-            #message(
+            # )
+            # message(
             #    "Single data entry dtype 0",
             #    single_ordered_data[0].dtype,
             #    message_verbosity=4,
-            #)
+            # )
 
             ordered_data_segment.append(single_ordered_data)
 
-        ordered_data_segment = np.array(ordered_data_segment)#.transpose(2, 0, 1
+        ordered_data_segment = np.array(
+            ordered_data_segment
+        )  # .transpose(2, 0, 1
         # ordered_data_segment = np.concatenate(ordered_data_segment)
-        
-        print('Single time step reordered data shape', ordered_data_segment.shape)
-        
-        #message(
+
+        print(
+            "Single time step reordered data shape", ordered_data_segment.shape
+        )
+
+        # message(
         #    "One time ordered data segment shape",
         #    ordered_data_segment.shape,
         #    message_verbosity=3,
-        #)
+        # )
 
         return ordered_data_segment
-    
+
     def flatten_assign_Clmr_to_modes_array_v2(self, modes_Clmr_t_grouped_list):
         """Create a ModesArray object from the gathered
         Clmr modes list from MPI workers. Assign the interpolant.
@@ -970,7 +1014,9 @@ class Interpolate3D:
         modes_Clmr_t_flat_list = flatten(modes_Clmr_t_grouped_list)
 
         message(
-            "Flattened Clmr vs time list", modes_Clmr_t_flat_list, message_verbosity=4
+            "Flattened Clmr vs time list",
+            modes_Clmr_t_flat_list,
+            message_verbosity=4,
         )
 
         # modes_array_list = []
@@ -1003,14 +1049,15 @@ class Interpolate3D:
             self._interpolant._time_axis[t_step] = t_step
 
             ell_inds = [item[1] for item in modes_Clmr_at_t_step]
-            
+
             ell_inds_order = np.argsort(ell_inds)
-            
-            ell_ordered_modes_Clmr_at_t_step = [modes_Clmr_at_t_step[ind] for ind in ell_inds_order]
-            
-            
+
+            ell_ordered_modes_Clmr_at_t_step = [
+                modes_Clmr_at_t_step[ind] for ind in ell_inds_order
+            ]
+
             # for ell in range(ell_max+1):
-            
+
             for item in modes_Clmr_at_t_step:
                 tstep2, ell, emm, mode_data = item
 
@@ -1030,7 +1077,11 @@ class Interpolate3D:
                 )
 
                 self._interpolant.set_mode_data_at_t_step(
-                    t_step=t_step, time_stamp=t_step, ell=ell, emm=emm, data=mode_data
+                    t_step=t_step,
+                    time_stamp=t_step,
+                    ell=ell,
+                    emm=emm,
+                    data=mode_data,
                 )
 
                 self.print_root(
@@ -1038,59 +1089,73 @@ class Interpolate3D:
                     self.interpolant.mode(ell, emm),
                     message_verbosity=4,
                 )
-                
+
     def get_radial_spectrum_vec(self, t_step):
-        ''' Get the radial spectum of Clm modes 
+        """Get the radial spectum of Clm modes
         for a given t_step from the list of ordered
-        single_modes obj '''
-        
+        single_modes obj"""
+
         this_t_Clm_r_modes = self._reordered_Clm_modes_t_r_flat_list[t_step]
-        
-        message("Len of stacked Clm_r modes list ", len(this_t_Clm_r_modes), 
-                message_verbosity=4)
+
+        message(
+            "Len of stacked Clm_r modes list ",
+            len(this_t_Clm_r_modes),
+            message_verbosity=4,
+        )
 
         # message(f"Local r modes at t_step {t_step} rank {self.mpi_comm.rank} len",
         #        len(this_r_modes_local), message_verbosity=2)
 
-        this_t_Clm_r_modes_data = np.array([item._modes_data for item in this_t_Clm_r_modes])
-        
-        message(f"This Clm_r modes data shape {this_t_Clm_r_modes_data.shape}", message_verbosity=4)
-        
-        this_Clmr = self.radial_grid.MatrixPhysToSpec @ np.array(this_t_Clm_r_modes_data)
-        
+        this_t_Clm_r_modes_data = np.array(
+            [item._modes_data for item in this_t_Clm_r_modes]
+        )
+
+        message(
+            f"This Clm_r modes data shape {this_t_Clm_r_modes_data.shape}",
+            message_verbosity=4,
+        )
+
+        this_Clmr = self.radial_grid.MatrixPhysToSpec @ np.array(
+            this_t_Clm_r_modes_data
+        )
+
         message(f"This Clmr shape {this_Clmr.shape}", message_verbosity=4)
-        
-        #message(f" This Clmr l{ell}, m{emm}", this_Clmr, message_verbosity=4)
+
+        # message(f" This Clmr l{ell}, m{emm}", this_Clmr, message_verbosity=4)
         return this_Clmr
-    
+
     def radial_decompose(self):
-        ''' Carry out the radial decomposition of the
-        Clm s at all t steps '''
-        
+        """Carry out the radial decomposition of the
+        Clm s at all t steps"""
+
         n_t = self.shape[0]
-        
+
         local_radial_decomp_list = []
-        
+
         for t_step in range(n_t):
-            if t_step%self.mpi_nprocs==self.mpi_rank:
-                
+            if t_step % self.mpi_nprocs == self.mpi_rank:
+
                 single_step_spectrum = self.get_radial_spectrum_vec(t_step)
-                
+
                 local_radial_decomp_list.append([t_step, single_step_spectrum])
-                
-        full_Clmr_t_modes_data_group_list = self.mpi_comm.gather(local_radial_decomp_list, root=0)
-                
-        if self.mpi_rank==0:
-            
-            full_Clmr_t_modes_data_flat_list = self.reorganize_mpi_job_output(full_Clmr_t_modes_data_list_group)
-            
-            full_Clmr_t_modes_data = np.array([item[1] for item in full_Clmr_t_modes_data_flat_list], dtype=np.complex128)
-            
-            
+
+        full_Clmr_t_modes_data_group_list = self.mpi_comm.gather(
+            local_radial_decomp_list, root=0
+        )
+
+        if self.mpi_rank == 0:
+
+            full_Clmr_t_modes_data_flat_list = self.reorganize_mpi_job_output(
+                full_Clmr_t_modes_data_list_group
+            )
+
+            full_Clmr_t_modes_data = np.array(
+                [item[1] for item in full_Clmr_t_modes_data_flat_list],
+                dtype=np.complex128,
+            )
+
             self.assign_modes_data_to_modes_array(full_Clmr_t_modes_data)
-            
-            
-        
+
     def construct_interpolant(self, diagnostics=True):
         """Setup an interpolant that would be used to
         interpolate the `raw_data` specified on the
@@ -1186,7 +1251,9 @@ class Interpolate3D:
                         t_step=t_step, r_index=r_index
                     )
 
-                    local_Clm_modes_t_r_list.append([job_index, local_Clm_modes])
+                    local_Clm_modes_t_r_list.append(
+                        [job_index, local_Clm_modes]
+                    )
 
                     # print(f"Local angular modes {job_index}",
                     # local_one_set_modes._modes_data)
@@ -1237,7 +1304,8 @@ class Interpolate3D:
         ########################
 
         self.print_root(
-            "Expanding angular modes in Chebyshev spectrum...", message_verbosity=2
+            "Expanding angular modes in Chebyshev spectrum...",
+            message_verbosity=2,
         )
 
         # Job list
@@ -1269,9 +1337,13 @@ class Interpolate3D:
             if jobid % self.mpi_nprocs == self.mpi_rank:
                 t_step, ell, emm = template
 
-                this_Clmr = self.radial_expansion_at_t_and_ell_emm(t_step, ell, emm)
+                this_Clmr = self.radial_expansion_at_t_and_ell_emm(
+                    t_step, ell, emm
+                )
 
-                message(f"This Clmr l{ell}, m{emm}", this_Clmr, message_verbosity=4)
+                message(
+                    f"This Clmr l{ell}, m{emm}", this_Clmr, message_verbosity=4
+                )
 
                 # Clmr modes list for all r for this particular
                 # time slice, ell, emm.
@@ -1314,7 +1386,8 @@ class Interpolate3D:
             self.flatten_assign_Clmr_to_modes_array(modes_Clmr_list_group_all_t)
 
             self.print_root(
-                "Checks on the constructed inteproland from rank 0", message_verbosity=4
+                "Checks on the constructed inteproland from rank 0",
+                message_verbosity=4,
             )
             self.print_root(
                 "Shape of interpoland modes",
@@ -1332,17 +1405,22 @@ class Interpolate3D:
 
         self.mpi_comm.Barrier()
 
-        self.print_root("Broadcasting constructed interpolant", message_verbosity=3)
+        self.print_root(
+            "Broadcasting constructed interpolant", message_verbosity=3
+        )
 
         self._interpolant = self.mpi_comm.bcast(self.interpolant, root=0)
 
         self.print_root(
-            "Successfully broadcasted constructed interpolant", message_verbosity=2
+            "Successfully broadcasted constructed interpolant",
+            message_verbosity=2,
         )
 
         self.save_interpolant()
 
-        self.print_root("Finished constructing interpolator...", message_verbosity=2)
+        self.print_root(
+            "Finished constructing interpolator...", message_verbosity=2
+        )
 
     def reorganize_coords(self):
         """Reorganize coords for evaluation of the interpolant.
@@ -1426,7 +1504,10 @@ class Interpolate3D:
 
             self.reorganize_coords()
 
-            if len(self.coords_groups_list[t_step]) > len(np.array(Th).flatten()) / 2:
+            if (
+                len(self.coords_groups_list[t_step])
+                > len(np.array(Th).flatten()) / 2
+            ):
                 # if np.array(self._Ylm_cache).all() == np.array(None):
                 self.create_Ylm_cache(t_step, overwrite=True)
 
@@ -1436,15 +1517,17 @@ class Interpolate3D:
                 # print("-----------------------")
 
                 # self.evaluate_reorganized()
-                evaluated_interpolant.append(self.evaluate_scattered(t_step=t_step))
+                evaluated_interpolant.append(
+                    self.evaluate_scattered(t_step=t_step)
+                )
 
             else:
-                #raise NotImplementedError(
+                # raise NotImplementedError(
                 #    "The reorganized evaluation is not checked, hence this message"
-                #)
-                #self.evaluate_scattered()
+                # )
+                # self.evaluate_scattered()
 
-                #evaluated_interpolant.append(self.evaluate_reorganized(t_step))
+                # evaluated_interpolant.append(self.evaluate_reorganized(t_step))
                 evaluated_interpolant.append(self.evaluate_scattered(t_step))
 
         # evaluated_interpolant_total = self.mpi_comm.gather(
@@ -1476,7 +1559,9 @@ class Interpolate3D:
                     item.shape,
                     message_verbosity=4,
                 )
-                evaluated_interpolant_array_ts.append(evaluated_interpolant_array)
+                evaluated_interpolant_array_ts.append(
+                    evaluated_interpolant_array
+                )
 
             self._interpolated_data = evaluated_interpolant_array_ts
 
@@ -1509,7 +1594,9 @@ class Interpolate3D:
         of the output grid (Theta, Phi)"""
 
         self.print_root(
-            "Clm interp modes shape", Clm_interp._modes_data.shape, message_verbosity=4
+            "Clm interp modes shape",
+            Clm_interp._modes_data.shape,
+            message_verbosity=4,
         )
 
         # theta_index, phi_index = self.get_ang_ind_from_ang_jobid(t_step, ang_jobid)
@@ -1518,9 +1605,15 @@ class Interpolate3D:
 
         Clm_modes_values = Clm_interp._modes_data
 
-        message("Clm modes values shape", Clm_modes_values.shape, message_verbosity=4)
         message(
-            "Ylm_raw_data_array shape", Ylm_cached_1d_array.shape, message_verbosity=4
+            "Clm modes values shape",
+            Clm_modes_values.shape,
+            message_verbosity=4,
+        )
+        message(
+            "Ylm_raw_data_array shape",
+            Ylm_cached_1d_array.shape,
+            message_verbosity=4,
         )
 
         # .transpose((2, 0, 1))
@@ -1578,7 +1671,8 @@ class Interpolate3D:
                 message("At radius", radius, message_verbosity=4)
 
                 message(
-                    f"Angular coords Theta {theta} \n Phi {phi}", message_verbosity=4
+                    f"Angular coords Theta {theta} \n Phi {phi}",
+                    message_verbosity=4,
                 )
 
                 message("r interpolating", message_verbosity=3)
@@ -1594,7 +1688,9 @@ class Interpolate3D:
 
                 end = time.time()
 
-                message(f"R Contraction done in {end-start}", message_verbosity=3)
+                message(
+                    f"R Contraction done in {end-start}", message_verbosity=3
+                )
 
                 # print("Clm_interp modes data", Clm_interp._modes_data)
 
@@ -1697,7 +1793,8 @@ class Interpolate3D:
         for jobid, item in enumerate(self.coords_groups_list[t_step]):
             if jobid % self.mpi_nprocs == self.mpi_rank:
                 message(
-                    f"Job {jobid} executed by rank {self.mpi_rank}", message_verbosity=4
+                    f"Job {jobid} executed by rank {self.mpi_rank}",
+                    message_verbosity=4,
                 )
 
                 Rf, Th, Ph = item
@@ -1705,7 +1802,9 @@ class Interpolate3D:
                 ri = Rf[0]
 
                 message("At radius", ri, message_verbosity=4)
-                message(f"Angular list Theta {Th} \n Phi {Ph}", message_verbosity=4)
+                message(
+                    f"Angular list Theta {Th} \n Phi {Ph}", message_verbosity=4
+                )
                 message("r interpolating", message_verbosity=4)
 
                 Clm_interp = RContract(
@@ -1770,7 +1869,9 @@ class Interpolate3D:
             # func_vals_list = flatten([item[1] for item in job_out_list_ordered])
 
             # Then unsort
-            func_vals_list_ordered = unsort(func_vals_list, self.ang_args_order[t_step])
+            func_vals_list_ordered = unsort(
+                func_vals_list, self.ang_args_order[t_step]
+            )
 
             # self.assign_interpolated_data(func_vals_list_ordered)
 
@@ -1848,7 +1949,11 @@ class Interpolate3D:
                     ell, emm = mode_set
 
                     Ylm = Yslm_vec(
-                        spin_weight=0, theta_grid=Th, phi_grid=Ph, ell=ell, emm=emm
+                        spin_weight=0,
+                        theta_grid=Th,
+                        phi_grid=Ph,
+                        ell=ell,
+                        emm=emm,
                     )
                     # print("Ylm.shape", Ylm.shape)
                     Ylm_local_set.append([jobid, Ylm])
@@ -1922,31 +2027,45 @@ class Interpolate3D:
                     message(f"Contacting rank {rank_id}", message_verbosity=3)
 
                     if jobid % self.mpi_nprocs == rank_id:
-                        message(f"Eligible by rank {rank_id}", message_verbosity=3)
+                        message(
+                            f"Eligible by rank {rank_id}", message_verbosity=3
+                        )
 
                         sub_cache = self.Ylm_cache._modes_data[:, :, jobid]
 
-                        self.mpi_comm.Send(sub_cache.copy(), dest=rank_id, tag=jobid)
+                        self.mpi_comm.Send(
+                            sub_cache.copy(), dest=rank_id, tag=jobid
+                        )
                         # req.wait()
 
-                        message(f"Captured by rank {rank_id}", message_verbosity=3)
+                        message(
+                            f"Captured by rank {rank_id}", message_verbosity=3
+                        )
 
                     break
 
         # ello, _ = self.sphp_output_grid[0].shape
         for jobid in range(len(jobs_list)):
-            message(f"Attempting to receive packet {jobid}", message_verbosity=3)
+            message(
+                f"Attempting to receive packet {jobid}", message_verbosity=3
+            )
 
             if jobid % self.mpi_nprocs == self.mpi_rank:
                 data_chunk = np.empty(
-                    (self.method_info.ell_max + 1, 2 * self.method_info.ell_max + 1),
+                    (
+                        self.method_info.ell_max + 1,
+                        2 * self.method_info.ell_max + 1,
+                    ),
                     dtype=np.complex128,
                 )
 
                 self.mpi_comm.Recv(data_chunk, source=0, tag=jobid)
                 # data_chunk = req.wait()
 
-                message(f"Packet {jobid} received by rank {jobid}", message_verbosity=3)
+                message(
+                    f"Packet {jobid} received by rank {jobid}",
+                    message_verbosity=3,
+                )
 
                 self._local_Ylm_data_cache_dict.update({jobid: data_chunk})
 
@@ -2007,7 +2126,9 @@ class Interpolate3D:
     def reorganize_mpi_job_output(self, job_output):
         job_output = flatten(job_output)
 
-        message("Job output ele shape", job_output[0][1].shape, message_verbosity=4)
+        message(
+            "Job output ele shape", job_output[0][1].shape, message_verbosity=4
+        )
 
         jobids = [item[0] for item in job_output]
 
@@ -2022,10 +2143,14 @@ class Interpolate3D:
         )[order]
 
         message(
-            "Reorg mpi job list shape", job_vals_list_ordered.shape, message_verbosity=4
+            "Reorg mpi job list shape",
+            job_vals_list_ordered.shape,
+            message_verbosity=4,
         )
         # print("One ele", job_vals_list_ordered[0])
-        message("One ele shape", job_vals_list_ordered[0].shape, message_verbosity=4)
+        message(
+            "One ele shape", job_vals_list_ordered[0].shape, message_verbosity=4
+        )
 
         return job_vals_list_ordered
 
