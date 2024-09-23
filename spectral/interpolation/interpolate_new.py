@@ -94,6 +94,8 @@ class Interpolate3D(ParallelClassTemplate):
         label="func",
         time_axis=None,
     ):
+        super().__init__()
+
         # User input quantities
         self._cart_output_grid = cart_output_grid
         self._sphp_output_grid = sphp_output_grid
