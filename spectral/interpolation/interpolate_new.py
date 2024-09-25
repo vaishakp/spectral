@@ -94,7 +94,6 @@ class Interpolate3D(ParallelClassTemplate):
         label="func",
         time_axis=None,
     ):
-
         super().__init__()
 
         # User input quantities
