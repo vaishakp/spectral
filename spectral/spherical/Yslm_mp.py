@@ -5,7 +5,7 @@ from waveformtools.single_mode import SingleMode
 import numpy as np
 from waveformtools.transforms import Yslm_vec as Yslm
 from waveformtools.waveformtools import message
-
+from warnings import warn
 #
 
 
@@ -58,11 +58,17 @@ class Yslm_mp:
                 self._phi = phi
         else:
             if grid_info.grid_type != "GL":
-                raise TypeError(
-                    "Caching is only currently supported for Gauss-Legendre type grids"
+                
+                warn(
+                    "Caching is only currently supported for Gauss-Legendre type grids. \n Turning of caching."
                 )
+            
+                #raise TypeError(
+                #    "Caching is only currently supported for Gauss-Legendre type grids"
+                #)
 
-            self._cache = True
+                self._cache = False
+            
             self._theta, self._phi = grid_info.meshgrid
 
         self.setup_env()

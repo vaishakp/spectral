@@ -11,17 +11,14 @@ GLGrid : grid info
 
 # from enum import property
 import numpy as np
-
+from spectral.spherical.abstract import SphericalGrid
 # from numba import jit, njit
-
 # import numba as nb
-
 # from numba.experimental import jitclass
 
-
-class UniformGrid:
+class UniformGrid(SphericalGrid):
     """A class to store the theta-phi grid info."""
-
+    ''' 
     def __init__(
         self,
         nphi=80,
@@ -47,6 +44,7 @@ class UniformGrid:
         self._integration_method = integration_method
 
         self._grid_type = grid_type
+    '''
 
     @property
     def grid_type(self):
@@ -254,6 +252,131 @@ class UniformGrid:
 
         theta_grid_gl, phi_grid_gl = infoGL.meshgrid
 
+
+class UniformGrid2(SphericalGrid):
+    """A class to store the theta-phi grid info."""
+    ''' 
+    def __init__(
+        self,
+        nphi=80,
+        ntheta=41,
+        nphimax=124,
+        nthetamax=66,
+        nghosts=2,
+        integration_method="MP",
+        grid_type="Uniform",
+    ):
+
+        # Number of gridpoints along phi direction including ghost points.
+        self.nphi = nphi
+        # Number of gridpoints along theta direction including ghost points.
+        self.ntheta = ntheta
+        # Total length of phi array used by ETK.
+        self.nphimax = nphimax
+        # Total length of theta array used by ETK.
+        self.nthetamax = nthetamax
+        # Number of ghost points in theta/phi direction.
+        self.nghosts = nghosts
+        # The default integration method
+        self._integration_method = integration_method
+
+        self._grid_type = grid_type
+    '''
+    @property
+    def theta_1d(self, theta_index=None):
+        """Returns the coordinate value theta
+        given the coordinate index. The coordinate
+        index ranges from (0, ntheta). The actual
+        indices without the ghost and extra zones
+        is (nghosts, ntheta-nghosts).
+
+        Parameters
+        -----------
+        theta_index : int/ 1d array
+                      The theta coordinate index or axis.
+
+        Returns
+        -------
+        theta_1d : float
+                   The coordinate(s) :math:`\\theta` on the sphere.
+        """
+
+        if not theta_index:
+            theta_index = np.arange(self.nghosts, self.ntheta - self.nghosts)
+
+        return (
+            (theta_index - self.nghosts + 0.5)
+            * np.pi
+            / (self.ntheta - 2 * self.nghosts)
+        )
+
+    @property
+    def dtheta(self):
+        # Return the coodinate spacing d\theta
+        return np.pi / (self.ntheta - 2 * self.nghosts)
+    
+    def to_GLGrid(self):
+        """Find the highest resolution
+        closest equivalent GL grid of this
+        grid
+        """
+
+        theta_min = min(self.theta_1d)
+
+        possibleL = 1
+
+        Lfound_flag = False
+
+        while Lfound_flag is False:
+
+            infoGL = GLGrid(L=possibleL)
+
+            theta_gl_min = min(infoGL.theta_1d)
+
+            if theta_gl_min < theta_min:
+                Lfound_flag = True
+                Lmax = possibleL - 1
+
+            possibleL += 1
+
+        Lmax = min(Lmax, self.ntheta_act - 1)
+
+        infoGL = GLGrid(L=Lmax)
+
+        self.equivalent_GLGrid = infoGL
+
+        return infoGL
+
+    def get_data_on_GLGrid(self, func, infoGL=None):
+        """Get the data on a GLGrid given data on
+        the uniform grid.
+
+        Parameters
+        ----------
+        func : 2darray
+               The function to be interpolated
+               onto the GLGrid
+        infoGL : grid_info, optional
+                 The GLGrid onto which the function
+                 is to be interpolated. If not given,
+                 then the closeset equivalent GL grid
+                 to this instance of UniformGrid will
+                 be found and used.
+
+        Returns
+        -------
+        infoGL : grid_info
+                 The GLGrid used for interpolation
+
+        func_on_GLGrid : 2darray
+                         The function `func`
+                         values on the GLGrid
+        """
+
+        if infoGL is None:
+            infoGL = self.to_GLGrid()
+
+        theta_grid_gl, phi_grid_gl = infoGL.meshgrid
 
 class GLGrid:
     """A class to store the coordinate grid on a sphere.
