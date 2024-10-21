@@ -12,13 +12,16 @@ GLGrid : grid info
 # from enum import property
 import numpy as np
 from spectral.spherical.abstract import SphericalGrid
+
 # from numba import jit, njit
 # import numba as nb
 # from numba.experimental import jitclass
 
+
 class UniformGrid(SphericalGrid):
     """A class to store the theta-phi grid info."""
-    ''' 
+
+    """ 
     def __init__(
         self,
         nphi=80,
@@ -44,7 +47,7 @@ class UniformGrid(SphericalGrid):
         self._integration_method = integration_method
 
         self._grid_type = grid_type
-    '''
+    """
 
     @property
     def grid_type(self):
@@ -255,7 +258,8 @@ class UniformGrid(SphericalGrid):
 
 class UniformGrid2(SphericalGrid):
     """A class to store the theta-phi grid info."""
-    ''' 
+
+    """ 
     def __init__(
         self,
         nphi=80,
@@ -281,7 +285,8 @@ class UniformGrid2(SphericalGrid):
         self._integration_method = integration_method
 
         self._grid_type = grid_type
-    '''
+    """
+
     @property
     def theta_1d(self, theta_index=None):
         """Returns the coordinate value theta
@@ -314,7 +319,7 @@ class UniformGrid2(SphericalGrid):
     def dtheta(self):
         # Return the coodinate spacing d\theta
         return np.pi / (self.ntheta - 2 * self.nghosts)
-    
+
     def to_GLGrid(self):
         """Find the highest resolution
         closest equivalent GL grid of this
@@ -377,6 +382,7 @@ class UniformGrid2(SphericalGrid):
             infoGL = self.to_GLGrid()
 
         theta_grid_gl, phi_grid_gl = infoGL.meshgrid
+
 
 class GLGrid:
     """A class to store the coordinate grid on a sphere.

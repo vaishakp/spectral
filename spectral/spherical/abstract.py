@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
-class SphericalGrid(ABC):
-    ''' An abstract class for spherical grids '''
 
-    #@abstractmethod
+class SphericalGrid(ABC):
+    """An abstract class for spherical grids"""
+
+    # @abstractmethod
     def __init__(
         self,
         nphi=80,
@@ -38,7 +39,7 @@ class SphericalGrid(ABC):
     @property
     def nphi(self):
         return self._nphi
-    
+
     @property
     def ntheta(self):
         return self._ntheta
@@ -46,7 +47,7 @@ class SphericalGrid(ABC):
     @property
     def nghosts(self):
         return self._nghosts
-    
+
     @property
     def npix(self):
         # Return the total number of pixels, including the ghost zones present at one iteration.
@@ -94,8 +95,8 @@ class SphericalGrid(ABC):
 
     @property
     def shape(self):
-        """Return the shape of the grid excluding the 
-        ghost and buffer zones """
+        """Return the shape of the grid excluding the
+        ghost and buffer zones"""
         return (self.ntheta_act, self.nphi_act)
 
     @property
