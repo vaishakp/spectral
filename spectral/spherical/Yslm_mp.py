@@ -10,6 +10,7 @@ from warnings import warn
 #
 
 
+
 class Yslm_mp:
     """Evaluate the spin weighted spherical harmonics
     asynchronously on multiple processors at any precision
@@ -28,8 +29,7 @@ class Yslm_mp:
            harmonics.
     nprocs : int
              The number of processors to use. Defaults to half the available.
-    """
-
+    """    
     _Yslm_mp_cache = {}
 
     def __init__(
@@ -41,7 +41,7 @@ class Yslm_mp:
         spin_weight=0,
         theta=None,
         phi=None,
-        cache=False,
+        cache=True,
     ):
 
         self._ell_max = ell_max
@@ -57,17 +57,15 @@ class Yslm_mp:
             else:
                 self._theta = theta
                 self._phi = phi
+            # Dont cache if grid type in unknown
+            self._cache = False
         else:
             if grid_info.grid_type != "GL":
 
                 warn(
                     "Caching is only currently supported for Gauss-Legendre type grids. \n Turning of caching."
                 )
-
-                # raise TypeError(
-                #    "Caching is only currently supported for Gauss-Legendre type grids"
-                # )
-
+                # Dont cache if grid type is not GL.
                 self._cache = False
 
             self._theta, self._phi = grid_info.meshgrid
@@ -198,7 +196,7 @@ class Yslm_mp:
 
     def test_mp(self, mode_number):
         """Print a simple test output message"""
-        print(f"This is process {os.getpid()} processing mode {mode_number}\n")
+        message(f"This is process {os.getpid()} processing mode {mode_number}\n", message_verbosity=1)
         return 1
 
     def __getstate__(self):
@@ -214,25 +212,27 @@ class Yslm_mp:
     def is_available_in_cache(self):
         """Check if the current parameters are available in cache"""
 
-        availability = False
+        availability=False
 
-        if not self.cache:
-            return availability
-
-        else:
+        if self.cache:
             if self.spin_weight in self._Yslm_mp_cache.keys():
                 if self.ell_max in self._Yslm_mp_cache[self.spin_weight].keys():
+                    #print("Retrieving from cache")
                     availability = True
 
-            return availability
+        #print(availability, self._Yslm_mp_cache)
+
+        return availability
 
     def update_cache(self):
         """Update cache after computation for faster retrieval"""
-
+        #print("Updating cache")
         if self.cache:
-            self._Yslm_mp_cache.update(
+            Yslm_mp._Yslm_mp_cache.update(
                 {self.spin_weight: {self.ell_max: self._sYlm_modes}}
             )
+
+        #print(Yslm_mp._Yslm_mp_cache)
 
     def store_as_modes(self):
         """Store the results as modes"""
