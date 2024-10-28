@@ -87,7 +87,7 @@ def SHExpand(
         )
 
     if info.grid_type == "GL" and method_info.swsh_routine == "spherepack":
-        message("Using SpherePack routine...")
+        message("Using SpherePack routine...", message_verbosity=2)
 
         results = SHExpandSpack(
             func,
@@ -100,7 +100,7 @@ def SHExpand(
         )
 
     elif method_info.swsh_routine == "waveformtools":
-        message("Using waveformtools routine...")
+        message("Using waveformtools routine...", message_verbosity=2)
         if auto_ell_max:
             message(
                 "Using SHExpandAuto: "
