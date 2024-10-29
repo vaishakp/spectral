@@ -1,6 +1,6 @@
 [[Project landing page]](https://sites.google.com/view/spectral/home)
 [![pipeline status](https://github.com/vaishakp/spectral/badges/main/pipeline.svg)](https://github.com/vaishakp/spectral/commits/main)
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/vaishakp/spectral/commits/main/LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/vaishakp/spectral/commits/main/LICENSE)
 [![Documentation Status](https://readthedocs.org/projects/spectral/badge/?version=latest)](https://spectral.readthedocs.io/en/latest/?badge=latest)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![PyPI version](docs/vers_badge.svg)](https://pypi.org/project/spectral/)
