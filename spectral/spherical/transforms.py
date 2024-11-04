@@ -47,7 +47,7 @@ def SHExpand(
     func,
     info,
     method_info,
-    err_info=False,
+    error_info=False,
     auto_ell_max=False,
     res_tol_percent=3,
     reg=False,
@@ -70,7 +70,7 @@ def SHExpand(
                   about the numerical methods
                   to be used during the following
                   operations.
-    err_info : bool
+    error_info : bool
                Whether or not to compute and return
                the error measures related to the
                SH representation.
@@ -87,20 +87,20 @@ def SHExpand(
         )
 
     if info.grid_type == "GL" and method_info.swsh_routine == "spherepack":
-        message("Using SpherePack routine...")
+        message("Using SpherePack routine...", message_verbosity=2)
 
         results = SHExpandSpack(
             func,
             info,
             method_info,
-            err_info,
+            error_info,
             res_tol_percent,
             reg,
             reg_order=reg_order,
         )
 
     elif method_info.swsh_routine == "waveformtools":
-        message("Using waveformtools routine...")
+        message("Using waveformtools routine...", message_verbosity=2)
         if auto_ell_max:
             message(
                 "Using SHExpandAuto: "
@@ -112,7 +112,7 @@ def SHExpand(
                 func,
                 info,
                 method_info,
-                err_info,
+                error_info,
                 res_tol_percent,
                 reg,
                 reg_order=reg_order,
@@ -126,18 +126,23 @@ def SHExpand(
                 message_verbosity=2,
             )
             results = SHExpandSimple(
-                func, info, method_info, err_info, reg=reg, reg_order=reg_order
+                func,
+                info,
+                method_info,
+                error_info,
+                reg=reg,
+                reg_order=reg_order,
             )
     elif method_info.swsh_routine == "waveformtools_slow":
         results = SHExpandSimpleSlow(
-            func, info, method_info, err_info, reg=reg, reg_order=reg_order
+            func, info, method_info, error_info, reg=reg, reg_order=reg_order
         )
     elif method_info.swsh_routine == "spherical":
         results = SHExpandSpherical(
             func,
             info,
             method_info,
-            err_info,
+            error_info,
             res_tol_percent,
             reg,
             reg_order=reg_order,
@@ -184,7 +189,7 @@ def SHExpandAuto(
     func,
     info,
     method_info,
-    err_info=False,
+    error_info=False,
     res_tol_percent=3,
     reg=False,
     reg_order=1,
@@ -218,7 +223,7 @@ def SHExpandAuto(
                   about the numerical methods
                   to be used during the following
                   operations.
-    err_info : bool
+    error_info : bool
                Whether or not to compute and return
                the error measures related to the
                SH representation.
@@ -374,7 +379,7 @@ def SHExpandAuto(
         result.reg_order = 0
         result.reg_details = "NA"
 
-    if err_info:
+    if error_info:
         from waveformtools.diagnostics import RMSerrs
 
         recon_func = SHContract(modes, info, ell_max)
@@ -396,13 +401,13 @@ def SHExpandAuto(
                 )
 
         Rerr, Amin, Amax = RMSerrs(orig_func, recon_func, info)
-        err_info_dict = {"RMS": Rerr, "Amin": Amin, "Amax": Amax}
+        error_info_dict = {"RMS": Rerr, "Amin": Amin, "Amax": Amax}
 
         ############################
         # Update error details
         ############################
 
-        result.error_info = err_info_dict
+        result.error_info = error_info_dict
         result.residuals = all_res
 
         even_mode_nums = np.arange(0, ell_max, 2)
@@ -429,7 +434,7 @@ def SHExpandSimple(
     func,
     grid_info,
     method_info,
-    err_info=False,
+    error_info=False,
     reg=False,
     reg_order=1,
     check_reg=None,
@@ -462,7 +467,7 @@ def SHExpandSimple(
                  about the numerical methods
                  to be used during the following
                  operations.
-    err_info: bool
+    error_info: bool
               Whether or not to compute and return
               the error measures related to the
               SH representation.
@@ -509,7 +514,7 @@ def SHExpandSimple(
             func = SHRegularize(func, theta_grid, check_reg, order=reg_order)
 
     result = SingleMode(ell_max=ell_max)
-
+    result._func = func
     cYslm = Yslm_mp(ell_max=ell_max, spin_weight=0, grid_info=grid_info)
     cYslm.run()
 
@@ -529,7 +534,7 @@ def SHExpandSimple(
         result.reg_order = 0
         result.reg_details = "NA"
 
-    if err_info:
+    if error_info:
         result = ComputeErrorInfo(
             result, orig_func, grid_info, ell_max, reg, check_reg, reg_order
         )
@@ -541,7 +546,7 @@ def SHExpandSimpleSlow(
     func,
     grid_info,
     method_info,
-    err_info=False,
+    error_info=False,
     reg=False,
     reg_order=1,
     check_reg=None,
@@ -574,7 +579,7 @@ def SHExpandSimpleSlow(
                   about the numerical methods
                   to be used during the following
                   operations.
-    err_info : bool
+    error_info : bool
                Whether or not to compute and return
                the error measures related to the
                SH representation.
@@ -652,7 +657,7 @@ def SHExpandSimpleSlow(
         result.reg_order = 0
         result.reg_details = "NA"
 
-    if err_info:
+    if error_info:
         result = ComputeErrorInfo(
             result, orig_func, grid_info, ell_max, reg, check_reg, reg_order
         )
@@ -727,13 +732,13 @@ def ComputeErrorInfo(
         Rerr, Amin, Amax = RMSerrs(orig_func, recon_func, grid_info)
         all_res.append(Rerr)
 
-    err_info_dict = {"RMS": Rerr, "Amin": Amin, "Amax": Amax}
-    result.error_info = err_info_dict
+    error_info_dict = {"RMS": Rerr, "Amin": Amin, "Amax": Amax}
+    result.error_info = error_info_dict
     result.residuals = all_res
     result.residual_axis = np.arange(-1, ell_max + 1)
 
     conv = round(100 * Rerr / all_res[0], 2)
-    if conv > 10:
+    if all_res[0] > 1e-10 and conv > 10:
         message(f"{conv}% Residue warning! ", message_verbosity=0)
 
     return result
@@ -743,7 +748,7 @@ def SHExpandSpack(
     func,
     grid_info,
     method_info,
-    err_info,
+    error_info,
     res_tol_percent,
     reg,
     reg_order,
@@ -778,10 +783,10 @@ def SHExpandSpack(
     spack_modes = xcls.grdtospec(func, ntrunc=grid_info.L)
 
     result = modes_spack_to_wftools(
-        spack_modes, grid_info, err_info, ell_max=grid_info.L
+        spack_modes, grid_info, error_info, ell_max=grid_info.L
     )
 
-    if err_info:
+    if error_info:
         result = ComputeErrorInfo(
             result, func, grid_info, grid_info.L, reg, check_reg, reg_order
         )
@@ -793,7 +798,7 @@ def SHExpandSpherical(
     func,
     grid_info,
     method_info,
-    err_info,
+    error_info,
     res_tol_percent,
     reg,
     reg_order=1,
@@ -846,7 +851,7 @@ def SHExpandSpherical(
         result.reg_order = 0
         result.reg_details = "NA"
 
-    if err_info:
+    if error_info:
         result = ComputeErrorInfo(
             result, func, grid_info, grid_info.L, reg, check_reg, reg_order
         )
@@ -854,7 +859,7 @@ def SHExpandSpherical(
     return result
 
 
-def modes_spack_to_wftools(spack_modes, grid_info, err_info, ell_max):
+def modes_spack_to_wftools(spack_modes, grid_info, error_info, ell_max):
     """Convert the modes in spherepack conventaion to modes
     in wftools notation"""
 
