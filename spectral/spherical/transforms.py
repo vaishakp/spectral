@@ -530,22 +530,10 @@ def SHExpandSimple(
     cYslm = Yslm_mp(ell_max=ell_max, spin_weight=0, grid_info=grid_info)
     cYslm.run()
 
-<<<<<<< HEAD
     #integrand = np.conjugate(cYslm.sYlm_modes._modes_data) * func
     integrand = np.einsum('ijk,...jk->i...jk', np.conjugate(cYslm.sYlm_modes._modes_data), # type: ignore
                            func, 
                          ) # type: ignore
-
-||||||| parent of d3cb703 (from master)
-    integrand = np.conjugate(cYslm.sYlm_modes._modes_data) * func
-
-=======
-    #integrand = np.conjugate(cYslm.sYlm_modes._modes_data) * func
-    integrand = np.einsum('ijk,...jk->i...jk', np.conjugate(cYslm.sYlm_modes._modes_data), # type: ignore
-                           func, 
-                         ) # type: ignore
-    
->>>>>>> d3cb703 (from master)
     Clm = TwoDIntegral(integrand, grid_info, int_method=int_method)
 
     result.set_mode_data(Clm)
