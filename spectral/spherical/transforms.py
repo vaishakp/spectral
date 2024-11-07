@@ -52,6 +52,7 @@ def SHExpand(
     res_tol_percent=3,
     reg=False,
     reg_order=1,
+    label=None,
 ):
     """Expand a given function in spin weight 0 spherical harmonics
     upto an optimal :math:`\\ell \\leq \\ell_{max}`.
@@ -87,7 +88,7 @@ def SHExpand(
         )
 
     if info.grid_type == "GL" and method_info.swsh_routine == "spherepack":
-        message("Using SpherePack routine...", message_verbosity=2)
+        message("Using SpherePack routine...", message_verbosity=3)
 
         results = SHExpandSpack(
             func,
@@ -97,10 +98,11 @@ def SHExpand(
             res_tol_percent,
             reg,
             reg_order=reg_order,
+            label=label,
         )
 
     elif method_info.swsh_routine == "waveformtools":
-        message("Using waveformtools routine...", message_verbosity=2)
+        message("Using waveformtools routine...", message_verbosity=3)
         if auto_ell_max:
             message(
                 "Using SHExpandAuto: "
@@ -116,14 +118,15 @@ def SHExpand(
                 res_tol_percent,
                 reg,
                 reg_order=reg_order,
+                label=label,
             )
 
         else:
             message(
-                "Using ShExpandSimple:"
+                "Using SHExpandSimple:"
                 " Expanding upto user prescribed"
                 f" ell_max {method_info.ell_max}",
-                message_verbosity=2,
+                message_verbosity=3,
             )
             results = SHExpandSimple(
                 func,
@@ -132,10 +135,11 @@ def SHExpand(
                 error_info,
                 reg=reg,
                 reg_order=reg_order,
+                label=label,
             )
     elif method_info.swsh_routine == "waveformtools_slow":
         results = SHExpandSimpleSlow(
-            func, info, method_info, error_info, reg=reg, reg_order=reg_order
+            func, info, method_info, error_info, reg=reg, reg_order=reg_order, label=label,
         )
     elif method_info.swsh_routine == "spherical":
         results = SHExpandSpherical(
@@ -146,6 +150,7 @@ def SHExpand(
             res_tol_percent,
             reg,
             reg_order=reg_order,
+            label=label,
         )
     else:
         raise NotImplementedError(
@@ -194,6 +199,7 @@ def SHExpandAuto(
     reg=False,
     reg_order=1,
     check_reg=None,
+    label=None,
 ):
     """Expand a given function in spin weight 0 spherical harmonics
     upto an optimal :math:`\\ell \\leq \\ell_{max}` that is
@@ -281,7 +287,7 @@ def SHExpandAuto(
             check_reg = CheckRegReq(func)
 
         if np.array(check_reg).any() > 0:
-            message("Regularizing function", message_verbosity=2)
+            message(f"Regularizing function {label}", message_verbosity=2)
             func = SHRegularize(func, theta_grid, check_reg, order=reg_order)
 
     #####################
@@ -324,7 +330,7 @@ def SHExpandAuto(
             uu = np.isnan(integrand.any())
 
             if uu:
-                raise ValueError("Nan found!")
+                raise ValueError(f"Nan found in {label}!")
 
             Clm = TwoDIntegral(integrand, info, method=method)
 
@@ -340,13 +346,13 @@ def SHExpandAuto(
             if dres_percent > res_tol_percent:
                 all_res.append(res2)
                 message(
-                    f" ell_max residue increase error of {dres_percent} %",
+                    f" ell_max residue increase error of {dres_percent} % in {label}",
                     message_verbosity=1,
                 )
 
                 ell_max = ell - 1
                 message(
-                    "Auto setting ell max to {ell_max} instead",
+                    f"Auto setting ell max to {ell_max} instead for {label}",
                     ell_max,
                     message_verbosity=1,
                 )
@@ -368,7 +374,7 @@ def SHExpandAuto(
     # update details
     #################################
 
-    result = SingleMode(modes_dict=modes)
+    result = SingleMode(modes_dict=modes, label=label, func=func)
     result._Grid = info
 
     if reg:
@@ -392,7 +398,7 @@ def SHExpandAuto(
         if reg:
             if np.array(check_reg).any() > 0:
                 message(
-                    "De-regularizing function" "for RMS deviation computation",
+                    f"De-regularizing function {label} " "for RMS deviation computation",
                     message_verbosity=2,
                 )
 
@@ -421,7 +427,7 @@ def SHExpandAuto(
 
         if Rerr > 0.1:
             message(
-                f"Residue warning {Rerr}!  Inaccurate representation.",
+                f"Residue warning {Rerr} for {label}!  Inaccurate representation.",
                 message_verbosity=0,
             )
 
@@ -438,6 +444,7 @@ def SHExpandSimple(
     reg=False,
     reg_order=1,
     check_reg=None,
+    label=None,
 ):
     """Expand a given function in spin weight 0 spherical harmonics
     upto a user prescribed :math:`\\ell_{max}`.
@@ -510,10 +517,10 @@ def SHExpandSimple(
             check_reg = CheckRegReq(func)
 
         if np.array(check_reg).any() > 0:
-            message("Regularizing function", message_verbosity=2)
+            message(f"Regularizing function {label}", message_verbosity=2)
             func = SHRegularize(func, theta_grid, check_reg, order=reg_order)
 
-    result = SingleMode(ell_max=ell_max)
+    result = SingleMode(ell_max=ell_max, label=label, func=func)
     result._func = func
     cYslm = Yslm_mp(ell_max=ell_max, spin_weight=0, grid_info=grid_info)
     cYslm.run()
@@ -550,6 +557,7 @@ def SHExpandSimpleSlow(
     reg=False,
     reg_order=1,
     check_reg=None,
+    label=None,
 ):
     """Expand a given function in spin weight 0 spherical harmonics
     upto a user prescribed :math:`\\ell_{max}`.
@@ -622,10 +630,10 @@ def SHExpandSimpleSlow(
             check_reg = CheckRegReq(func)
 
         if np.array(check_reg).any() > 0:
-            message("Regularizing function", message_verbosity=2)
+            message(f"Regularizing function {label}", message_verbosity=2)
             func = SHRegularize(func, theta_grid, check_reg, order=reg_order)
 
-    result = SingleMode(ell_max=ell_max)
+    result = SingleMode(ell_max=ell_max, label=label, func=func)
     recon_func = np.zeros(func.shape, dtype=np.complex128)
 
     for ell in range(ell_max + 1):
@@ -714,13 +722,11 @@ def ComputeErrorInfo(
         if reg:
             if np.array(check_reg).any() > 0:
                 message(
-                    "De-regularizing function"
+                    f"De-regularizing function {result.label} "
                     " for total RMS deviation"
                     " computation",
                     message_verbosity=2,
                 )
-
-                print("Dereg func")
                 recon_func = SHDeRegularize(
                     reg_recon_func, theta_grid, check_reg, order=reg_order
                 )
@@ -732,14 +738,15 @@ def ComputeErrorInfo(
         Rerr, Amin, Amax = RMSerrs(orig_func, recon_func, grid_info)
         all_res.append(Rerr)
 
-    error_info_dict = {"RMS": Rerr, "Amin": Amin, "Amax": Amax}
+    error_info_dict = {"RMS": Rerr, "dAmin": Amin, "dAmax": Amax}
     result.error_info = error_info_dict
     result.residuals = all_res
     result.residual_axis = np.arange(-1, ell_max + 1)
 
     conv = round(100 * Rerr / all_res[0], 2)
-    if all_res[0] > 1e-10 and conv > 10:
-        message(f"{conv}% Residue warning! ", message_verbosity=0)
+    if all_res[0] > 1e-8 and conv > 10:
+        message(f"{conv}% Residue warning for {result.label}! ", message_verbosity=0)
+        message(f"Error report for {result.label}: \n\t {result.error_info}")
 
     return result
 
@@ -753,6 +760,7 @@ def SHExpandSpack(
     reg,
     reg_order,
     check_reg=None,
+    label=None,
 ):
     """Expand using spherepack.
     Please note that this is only useful for
@@ -777,13 +785,13 @@ def SHExpandSpack(
             check_reg = CheckRegReq(func)
 
         if np.array(check_reg).any() > 0:
-            message("Regularizing function", message_verbosity=2)
+            message(f"Regularizing function {label}", message_verbosity=2)
             func = SHRegularize(func, theta_grid, check_reg, order=reg_order)
 
     spack_modes = xcls.grdtospec(func, ntrunc=grid_info.L)
 
     result = modes_spack_to_wftools(
-        spack_modes, grid_info, error_info, ell_max=grid_info.L
+        spack_modes, func, grid_info, error_info, ell_max=grid_info.L
     )
 
     if error_info:
@@ -803,6 +811,7 @@ def SHExpandSpherical(
     reg,
     reg_order=1,
     check_reg=None,
+    label=None,
 ):
     """Expand using spherical package."""
 
@@ -816,7 +825,7 @@ def SHExpandSpherical(
         message_verbosity=3,
     )
 
-    result = SingleMode(ell_max=ell_max)
+    result = SingleMode(ell_max=ell_max, label=label, func=func)
 
     from spectral.spherical.swsh import create_spherical_Yslm_modes_array
 
@@ -828,7 +837,7 @@ def SHExpandSpherical(
             check_reg = CheckRegReq(func)
 
         if np.array(check_reg).any() > 0:
-            message("Regularizing function", message_verbosity=2)
+            message(f"Regularizing function {label}", message_verbosity=2)
             func = SHRegularize(func, theta_grid, check_reg, order=reg_order)
 
     sYlm = create_spherical_Yslm_modes_array(
@@ -859,7 +868,7 @@ def SHExpandSpherical(
     return result
 
 
-def modes_spack_to_wftools(spack_modes, grid_info, error_info, ell_max):
+def modes_spack_to_wftools(spack_modes, func, grid_info, error_info, ell_max, label=None):
     """Convert the modes in spherepack conventaion to modes
     in wftools notation"""
 
@@ -867,7 +876,7 @@ def modes_spack_to_wftools(spack_modes, grid_info, error_info, ell_max):
 
     from waveformtools.single_mode import SingleMode
 
-    wf_modes = SingleMode(spin_weight=0, ell_max=ell_max, Grid=grid_info)
+    wf_modes = SingleMode(spin_weight=0, ell_max=ell_max, Grid=grid_info,  label=label, func=func)
 
     factor = np.sqrt(2 * np.pi)
 

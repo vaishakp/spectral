@@ -1,9 +1,8 @@
-from joblib import Parallel
 from mpi4py import MPI
 import numpy as np
 
 from parallellib.parallel_mpi import ParallelClassTemplate
-from waveformtools.waveformtools import flatten, message, unsort
+from waveformtools.waveformtools import flatten_3l, message, unsort
 from spectral.spherical.grids import GLGrid
 from waveformtools.diagnostics import method_info
 
@@ -77,19 +76,25 @@ class Interpolate3D(ParallelClassTemplate):
 
     Notes
     -----
+    Decoposition strategy
     1. Assumes the same number of radial and angular collocation points
        across all time steps
     2. The data from all time steps are pooled together before angular expansion happens
     3. Each shell is labelled with r and t
-    4. Angular decompositions are MPI parallelzed.
+    4. Angular decompositions are fully vectorized over r and t i.e. one shell for 
+       each r and t is distributed to one MPI worker.
     4. After angular expansion, one has Clmrt
-    5. Clm modes on a single line of sight in r from across time steps are pooled together.
-    6. Radial decompositions of each angular mode is MPI paralellzed across time. Withinn each time step,
-       the Clmr decomposition to Clmq are vectorized i.e. Clmrt -> Clmpt (radial physical to spectral) are MPI Parallelized
-       over t and vectorized over lm.
+    5. Clm modes on all lines of sight in r and from across time steps are pooled together.
+    6. Radial decompositions of the angular modes on all rays (over lm and time) are vectorized.
+       i.e. Clmrt -> Clmpt (radial physical to spectral) are fully vectorized over r and t.
+    7. If needed, interpolation over time can be carried out using either another chebyshev expansion
+       or a spline interpolation.
     7. Evaluations are MPI parallelized within each time step but not across 
        it.
 
+    Evaluation strategy
+    1. The spectral eval parameter space is (t, r, theta, phi)
+    2. Evaluations can be distributed to MPI processors individually.
     """
 
     def __init__(
@@ -156,20 +161,23 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def shape(self):
-        """The number of input raw data.
-        The first axis is assumed to be the time axis"""
+        """The shape of input raw data.
+        The first axis is assumed to be the time axis,
+        followed by x,y,z """
 
-        if np.array(self._shape).all() == np.array(None):
+        if (np.array(self._shape) == np.array(None)).all():
             self._shape = np.array(self.raw_data).shape
 
         return self._shape
 
     @property
     def time_axis(self):
+        ''' The time axis of the data set '''
         return self._time_axis
 
     @property
     def label(self):
+        ''' A label for the run/dataset '''
         return self._label
 
     @property
@@ -182,8 +190,7 @@ class Interpolate3D(ParallelClassTemplate):
     def sphp_output_grid(self):
         """The output coordinate grid
         in spherical polar coordinates
-        for interpolation"""
-
+        used during interpolation"""
         return self._sphp_output_grid
 
     @property
@@ -196,7 +203,7 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def r_min(self):
-        """The smallest radial shell present
+        """The radius of the smallest shell present
         in the input grid"""
 
         if self._r_min is None:
@@ -206,8 +213,8 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def r_max(self):
-        """The largest radial shell present
-        in the input grid"""
+        """The radius of the largest radial shell 
+        present in the input grid"""
         if self._r_max is None:
             raise KeyError("Please provide r_max of the input grid")
 
@@ -215,13 +222,15 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def output_grid(self):
-        """The output coordinate grid interpolated onto"""
+        """The output coordinate grid interpolated onto """
 
         return self._output_grid
 
     @property
     def raw_data(self):
-        """The data to be interpolated"""
+        """The data to be interpolated, in a specified
+        coordinate system. The coordinate system is specified
+         at xxx """
 
         return self._raw_data
 
@@ -233,22 +242,25 @@ class Interpolate3D(ParallelClassTemplate):
     @property
     def interpolated_data(self):
         """The data interpolated onto the
-        output cartesian grid"""
+        output cartesian grid """
         return self._interpolated_data
 
     @property
     def input_ang_grid(self):
-        """The angular grid of the input raw data"""
+        """The angular grid of the input raw data. 
+        This is an object of the Gauss-Legendre grid 
+        class """
         return self._input_ang_grid
 
     @property
     def input_grid(self):
+        ''' A proxy to the combined (radial, angular) input grid '''
         return self._input_grid
 
     @property
     def radial_grid(self):
         """The radial collocation points of the
-        input grid"""
+        input grid. These are the Gauss-Lobatto points """
         return self._radial_grid
 
     @property
@@ -259,31 +271,35 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def ang_args_order(self):
-        """A list contining the indices of the ordered
-        data"""
+        """ A list contining the job ids/ indices of the ordered
+        data """
         return self._ang_args_order
 
     @property
     def coords_groups_list(self):
         """A list contining groups of coordinates. Each group is
-        usually used by one MPI worker."""
+        usually used by one MPI worker for evaluation routine ."""
         return self._coords_groups_list
 
     @property
     def num_coord_groups(self):
-        """The number of groups in the coordinate group list"""
+        """The number of groups in the coordinate group list. This is 
+        equal to the maximum number of MPI jobs that can run
+        in parallel """
         return len(self.coords_groups_list)
 
     @property
     def saved_interpolant_file(self):
+        ''' Path to the saved interpolant '''
         return self._saved_interpolant_file
 
     @property
     def Ylm_cache(self):
-        """The cached Ylm data for quick organized grid interpolation.
+        """The cached Ylm data for quick organized evaluation 
+        of the interpolant.
 
-        In organized interpolation, the points to be interpolated onto
-        line along the same angular rays.
+        In organized evaluation, the points to be interpolated onto
+        lie along the same angular rays.
 
         Ylm_cache will be a 2 diemnsinal array
         """
@@ -294,6 +310,9 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def axis_rotation_angles(self):
+        ''' The rotation angles of the line joining the BHs.
+        This will be a 1D array along time '''
+
         return self._axis_rotation_angles
 
     ####################################
@@ -305,19 +324,19 @@ class Interpolate3D(ParallelClassTemplate):
         associated expansion parameters"""
 
         # Input coordinate grid setup
-        n_t, n_r, n_theta, n_phi = self.shape
+        n_time, n_radii, n_theta, n_phi = self.shape
 
-        self.print_root(
-            f"Number of time steps {n_t}\n"
-            f"Number of radial shells {n_r}\n"
+        self.message_root(
+            f"Number of time steps {n_time}\n"
+            f"Number of radial shells {n_radii}\n"
             f"Angular grid shape {n_theta} x {n_phi}"
         )
 
-        self.print_root("Num of radial points", n_r, message_verbosity=2)
+        self.message_root("Num of radial points", n_radii, message_verbosity=2)
 
         self._input_ang_grid = GLGrid(L=n_theta - 1)
 
-        self.print_root(
+        self.message_root(
             "L grid of expansion", self.input_ang_grid.L, message_verbosity=2
         )
 
@@ -325,7 +344,7 @@ class Interpolate3D(ParallelClassTemplate):
             ell_max=self.input_ang_grid.L, int_method="GL"
         )
 
-        self.print_root(
+        self.message_root(
             f"method info ell max {self.method_info.ell_max}",
             message_verbosity=3,
         )
@@ -334,7 +353,7 @@ class Interpolate3D(ParallelClassTemplate):
             a=self.r_min, b=self.r_max, Nfuncs=self.shape[1]
         )
 
-        self.print_root(
+        self.message_root(
             "Created Chebyshev radial grid"
             f"with Nfuncs {self.radial_grid.Nfuncs}\n",
             f"Shape of radial collocation points \
@@ -355,18 +374,18 @@ class Interpolate3D(ParallelClassTemplate):
                 )
             else:
 
-                self.print_root(
+                self.message_root(
                     "Reaing in Cart3D Output grid...", message_verbosity=2
                 )
 
                 sphp_output_grid = []
 
-                self.print_root(
+                self.message_root(
                     "Transforming to spherical polar coordinates",
                     message_verbosity=2,
                 )
 
-                for t_step in range(n_t):
+                for t_step in range(n_time):
                     # Transform cart to spherical
                     X, Y, Z = self.cart_output_grid[t_step]
 
@@ -389,17 +408,17 @@ class Interpolate3D(ParallelClassTemplate):
             self._sphp_output_grid = sphp_output_grid
 
         else:
-            self.print_root(
+            self.message_root(
                 "Reading in SPHP Output Grid...", message_verbosity=2
             )
 
-        assert len(self.sphp_output_grid) == n_t, (
+        assert len(self.sphp_output_grid) == n_time, (
             "The output grid must be"
             "specified at all time steps the input raw data"
             "is specified at"
         )
 
-        self.print_root(
+        self.message_root(
             "The output grid shape is ",
             self.sphp_output_grid[0][0].shape,
             message_verbosity=2,
@@ -412,7 +431,7 @@ class Interpolate3D(ParallelClassTemplate):
         """Initialize a modes array to hold the spectral
         interpolant object"""
 
-        self.print_root("Initializing the interpolant object...")
+        self.message_root("Initializing the interpolant object...")
 
         if np.array(self._interpolant).all() != np.array(None):
             raise ValueError("The interpolant has already been initialized ! ")
@@ -439,20 +458,13 @@ class Interpolate3D(ParallelClassTemplate):
         phi_rotation_angles = []
 
         # ntheta_ah, nphi_ah = self.sphp_output_grid[0][1].shape
-
         # theta_axis_1d = self.sphp_output_grid[t_index][1][:, 0]
-
         # theta_equator_index = np.argmin(abs(theta_axis_1d - np.pi/2))
-
         # phi_rotation_angles =
         for t_index in range(self.shape[0]):
-
             _, Theta, Phi = self.sphp_output_grid[t_index]
-
             theta_axis_1d = self.sphp_output_grid[t_index][2][:, 0]
-
             theta_equator_index = np.argmin(abs(theta_axis_1d - np.pi / 2))
-
             phi_rotation_angles.append(Phi[theta_equator_index, 0])
 
         self._axis_rotation_angles = np.array(phi_rotation_angles)
@@ -509,12 +521,12 @@ class Interpolate3D(ParallelClassTemplate):
         """Expand the angular data at one radial
         collocation point at one time step in SH"""
 
-        self.print_root(
+        self.message_root(
             "t_step inside ang exp at t and r index",
             t_step,
             message_verbosity=4,
         )
-        self.print_root(
+        self.message_root(
             "r_index inside ang exp at t and r index",
             r_index,
             message_verbosity=4,
@@ -566,11 +578,11 @@ class Interpolate3D(ParallelClassTemplate):
         """Carry out the radial decomposition of the
         Clm s at all t steps"""
 
-        n_t = self.shape[0]
+        n_time = self.shape[0]
 
         local_radial_decomp_list = []
 
-        for t_step in range(n_t):
+        for t_step in range(n_time):
             if t_step % self.mpi_nprocs == self.mpi_rank:
 
                 single_step_spectrum = self.get_radial_spectrum_vec(t_step)
@@ -608,7 +620,7 @@ class Interpolate3D(ParallelClassTemplate):
         in the zipped list of the flattened angular corrdinates
         of the output grid (Theta, Phi)"""
 
-        self.print_root(
+        self.message_root(
             "Clm interp modes shape",
             Clm_interp._modes_data.shape,
             message_verbosity=4,
@@ -663,7 +675,7 @@ class Interpolate3D(ParallelClassTemplate):
         each of the 1d lists has length one.
         """
 
-        self.print_root("Reorganizing coords", message_verbosity=2)
+        self.message_root("Reorganizing coords", message_verbosity=2)
 
         coords_groups_list = []
         ang_args_order_list = []
@@ -688,7 +700,7 @@ class Interpolate3D(ParallelClassTemplate):
         with 3d input data i.e. no time axis"""
 
         if self.mpi_rank == 0:
-            modes_r_set = flatten(modes_r_set_group)
+            modes_r_set = flatten_3l(modes_r_set_group)
             r_ind_set = [item[0] for item in modes_r_set]
             r_modes_order = np.argsort(r_ind_set)
 
@@ -698,13 +710,13 @@ class Interpolate3D(ParallelClassTemplate):
 
         modes_r_ordered = self.mpi_comm.bcast(modes_r_ordered, root=0)
 
-        self.print_root(
+        self.message_root(
             "Synchronizing before assigining modes r ", message_verbosity=3
         )
 
         self.mpi_comm.Barrier()
 
-        self.print_root(
+        self.message_root(
             "Finished synchronizing before assigining modes r ",
             message_verbosity=3,
         )
@@ -798,7 +810,7 @@ class Interpolate3D(ParallelClassTemplate):
 
     def reorganize_mpi_job_output(self, job_output):
 
-        job_output = flatten(job_output)
+        job_output = flatten_3l(job_output)
 
         message(
             "Job output ele shape", job_output[0][1].shape, message_verbosity=2
@@ -836,7 +848,7 @@ class Interpolate3D(ParallelClassTemplate):
         at all times and radial shells (flattened)
 
         Please note that the `modes_r_t_set_list` is of the form
-        [job_id, SingleMode]. Here job_id is t_step * n_r + r_index
+        [job_id, SingleMode]. Here job_id is t_step * n_radii + r_index
 
         """
 
@@ -844,14 +856,14 @@ class Interpolate3D(ParallelClassTemplate):
             "modes r t set list", Clm_modes_r_t_flat_list, message_verbosity=4
         )
 
-        n_r = self.shape[1]
+        n_radii = self.shape[1]
 
         message(f"Fectching all Clm modes at time step {t_step}")
 
         Clm_modes_r_list_at_given_t_step = [
             item
             for item in Clm_modes_r_t_flat_list
-            if int(item[0] / n_r) == t_step
+            if int(item[0] / n_radii) == t_step
         ]
 
         message(
@@ -894,7 +906,7 @@ class Interpolate3D(ParallelClassTemplate):
     def get_radial_spectrum_vec(self, t_step):
         """Get the radial spectum of Clm modes
         for a given t_step from the list of ordered
-        single_modes obj"""
+        single_modes obj """
 
         this_t_Clm_r_modes = self._reordered_Clm_modes_t_r_flat_list[t_step]
 
@@ -1004,7 +1016,7 @@ class Interpolate3D(ParallelClassTemplate):
         if self.mpi_rank == 0:
             reordered_Clm_modes_t_r_flat_list = []
 
-            Clm_modes_t_r_flat_list = flatten(Clm_modes_t_r_grouped_list)
+            Clm_modes_t_r_flat_list = flatten_3l(Clm_modes_t_r_grouped_list)
 
             # Iterate over t steps to get modes
             # at a given t step at all radial
@@ -1016,10 +1028,10 @@ class Interpolate3D(ParallelClassTemplate):
                 message_verbosity=4,
             )
 
-            n_t = self.shape[0]
-            n_r = self.shape[1]
+            n_time = self.shape[0]
+            n_radii = self.shape[1]
 
-            for t_step in range(n_t):
+            for t_step in range(n_time):
                 # Get all the Clm modes on all shells at a particular
                 # t_step
                 Clm_modes_r_flat_list_at_given_t_step = (
@@ -1028,7 +1040,7 @@ class Interpolate3D(ParallelClassTemplate):
                     )
                 )
 
-                self.print_root(
+                self.message_root(
                     f"Modes at t step {t_step} length",
                     len(Clm_modes_r_flat_list_at_given_t_step),
                     message_verbosity=4,
@@ -1038,16 +1050,16 @@ class Interpolate3D(ParallelClassTemplate):
                     [item[0] for item in Clm_modes_r_flat_list_at_given_t_step]
                 )
 
-                self.print_root(
+                self.message_root(
                     "job id set at t step",
                     jobid_set_t_step,
                     message_verbosity=4,
                 )
 
                 # Get shell numbers at this t_step
-                r_ind_set = jobid_set_t_step - t_step * n_r
+                r_ind_set = jobid_set_t_step - t_step * n_radii
 
-                self.print_root(
+                self.message_root(
                     f"r_ind_set at t slice {t_step}",
                     r_ind_set,
                     message_verbosity=4,
@@ -1075,13 +1087,13 @@ class Interpolate3D(ParallelClassTemplate):
             reordered_Clm_modes_t_r_flat_list, root=0
         )
 
-        self.print_root(
+        self.message_root(
             "Synchronizing before assigining modes r ", message_verbosity=3
         )
 
         self.mpi_comm.Barrier()
 
-        self.print_root(
+        self.message_root(
             "Finished synchronizing before assigining modes r ",
             message_verbosity=3,
         )
@@ -1094,7 +1106,7 @@ class Interpolate3D(ParallelClassTemplate):
         """Create a SingleMode object from the gathered
         Clmr modes list from MPI workers. Assign the interpolant"""
 
-        modes_Clmr_list_flattened = flatten(modes_Clmr_list_group)
+        modes_Clmr_list_flattened = flatten_3l(modes_Clmr_list_group)
 
         # Set mode data
         modes_Clmr = SingleMode(
@@ -1118,7 +1130,7 @@ class Interpolate3D(ParallelClassTemplate):
         Clmr at different instants of time."""
 
         # This contains the jobid, ell, emm and the Clmr mode
-        modes_Clmr_t_flat_list = flatten(modes_Clmr_t_grouped_list)
+        modes_Clmr_t_flat_list = flatten_3l(modes_Clmr_t_grouped_list)
 
         message(
             "Flattened Clmr vs time list",
@@ -1133,12 +1145,12 @@ class Interpolate3D(ParallelClassTemplate):
                 t_step, modes_Clmr_t_flat_list
             )
 
-            self.print_root(
+            self.message_root(
                 f"Setting mode data at time step {t_step} ", message_verbosity=4
             )
             # Set mode data
 
-            self.print_root(
+            self.message_root(
                 f"Length of mode Clmr at tstep {t_step} ",
                 len(modes_Clmr_at_t_step),
                 message_verbosity=4,
@@ -1152,13 +1164,13 @@ class Interpolate3D(ParallelClassTemplate):
             for item in modes_Clmr_at_t_step:
                 tstep2, ell, emm, mode_data = item
 
-                self.print_root(f"Nested t step {t_step}", message_verbosity=4)
+                self.message_root(f"Nested t step {t_step}", message_verbosity=4)
 
-                self.print_root(
+                self.message_root(
                     f"Setting l {ell} m {emm} mode data", message_verbosity=4
                 )
 
-                self.print_root(
+                self.message_root(
                     "Mode data before",
                     self.interpolant.mode(ell, emm),
                     message_verbosity=4,
@@ -1172,7 +1184,7 @@ class Interpolate3D(ParallelClassTemplate):
                     data=mode_data,
                 )
 
-                self.print_root(
+                self.message_root(
                     "Mode data after",
                     self.interpolant.mode(ell, emm),
                     message_verbosity=4,
@@ -1189,7 +1201,7 @@ class Interpolate3D(ParallelClassTemplate):
         Clmr at different instants of time."""
 
         # This contains the jobid, ell, emm and the Clmr mode
-        modes_Clmr_t_flat_list = flatten(modes_Clmr_t_grouped_list)
+        modes_Clmr_t_flat_list = flatten_3l(modes_Clmr_t_grouped_list)
 
         message(
             "Flattened Clmr vs time list",
@@ -1206,12 +1218,12 @@ class Interpolate3D(ParallelClassTemplate):
                 t_step, modes_Clmr_t_flat_list
             )
 
-            self.print_root(
+            self.message_root(
                 f"Setting mode data at time step {t_step} ", message_verbosity=4
             )
 
             # Set mode data
-            self.print_root(
+            self.message_root(
                 f"Length of mode Clmr at tstep {t_step} ",
                 len(modes_Clmr_at_t_step),
                 message_verbosity=4,
@@ -1233,13 +1245,13 @@ class Interpolate3D(ParallelClassTemplate):
             for item in modes_Clmr_at_t_step:
                 tstep2, ell, emm, mode_data = item
 
-                self.print_root(f"Nested t step {t_step}", message_verbosity=4)
+                self.message_root(f"Nested t step {t_step}", message_verbosity=4)
 
-                self.print_root(
+                self.message_root(
                     f"Setting l {ell} m {emm} mode data", message_verbosity=4
                 )
 
-                self.print_root(
+                self.message_root(
                     "Mode data before",
                     self.interpolant.mode(ell, emm),
                     message_verbosity=4,
@@ -1253,7 +1265,7 @@ class Interpolate3D(ParallelClassTemplate):
                     data=mode_data,
                 )
 
-                self.print_root(
+                self.message_root(
                     "Mode data after",
                     self.interpolant.mode(ell, emm),
                     message_verbosity=4,
@@ -1311,31 +1323,31 @@ class Interpolate3D(ParallelClassTemplate):
         # shells through all time steps
 
         if self.saved_interpolant_file is not None:
-            self.print_root("Loading interpoland from file")
+            self.message_root("Loading interpoland from file")
             self.load_interpolant()
 
             return 1
 
-        n_r = self.shape[1]
+        n_radii = self.shape[1]
         r_indices_at_t_step = np.arange(n_r)
 
-        n_t_steps = self.shape[0]
+        n_time = self.shape[0]
 
-        total_nang_decomps = n_r * n_t_steps
+        total_nang_decomps = n_radii * n_time
 
         n_decomps_parallel = min(total_nang_decomps, self.mpi_nprocs)
 
         # Use only nang_decoms num of mpi workers for
         # the angular decomposition
 
-        self.print_root(
+        self.message_root(
             "Expanding radial shells in angular modes...", message_verbosity=2
         )
-        self.print_root(
+        self.message_root(
             "---------------------------------------------", message_verbosity=2
         )
 
-        self.print_root(
+        self.message_root(
             "r indices per t step", r_indices_at_t_step, message_verbosity=3
         )
 
@@ -1357,14 +1369,14 @@ class Interpolate3D(ParallelClassTemplate):
         local_Clm_modes_t_r_list = []
 
         # Parallel angular decompose
-        for t_step in range(n_t_steps):
+        for t_step in range(n_time):
             for r_index in r_indices_at_t_step:
 
-                job_index = t_step * n_r + r_index
+                job_index = t_step * n_radii + r_index
 
                 if job_index % self.mpi_nprocs == self.mpi_rank:
                     message(
-                        f"Interpolating element {job_index} of {n_t_steps*n_r} ",
+                        f"Interpolating element {job_index} of {n_time*n_radii} ",
                         message_verbosity=2,
                     )
 
@@ -1385,7 +1397,7 @@ class Interpolate3D(ParallelClassTemplate):
         self.mpi_comm.Barrier()
 
         # Gather
-        self.print_root("Gathering modes r ", message_verbosity=2)
+        self.message_root("Gathering modes r ", message_verbosity=2)
 
         Clm_modes_t_r_grouped_list = self.mpi_comm.gather(
             local_Clm_modes_t_r_list, root=0
@@ -1394,30 +1406,30 @@ class Interpolate3D(ParallelClassTemplate):
         self.mpi_comm.Barrier()
 
         if self.mpi_rank == 0:
-            self.print_root(
+            self.message_root(
                 "Finished gathering modes t and r. Length "
                 f"{len(Clm_modes_t_r_grouped_list)}",
                 message_verbosity=3,
             )
 
         # Re order and recollect angular modes x 1d radial
-        self.print_root(
+        self.message_root(
             "Total number of local angular decomposition"
             f"jobs {len(local_Clm_modes_t_r_list)}",
             message_verbosity=2,
         )
 
-        self.print_root("Reorganize modes in t and r ", message_verbosity=2)
+        self.message_root("Reorganize modes in t and r ", message_verbosity=2)
 
         self.flatten_reorder_assign_Clm_ang_modes_r_t_grouped_list(
             Clm_modes_t_r_grouped_list
         )
 
-        self.print_root(
+        self.message_root(
             "Finished reordering and gathering modes r ", message_verbosity=3
         )
 
-        self.print_root(
+        self.message_root(
             "Finished expanding radial shells in angular modes...",
             message_verbosity=2,
         )
@@ -1426,7 +1438,7 @@ class Interpolate3D(ParallelClassTemplate):
         # Radial transformation
         ########################
 
-        self.print_root(
+        self.message_root(
             "Expanding angular modes in Chebyshev spectrum...",
             message_verbosity=2,
         )
@@ -1435,9 +1447,9 @@ class Interpolate3D(ParallelClassTemplate):
         modes_Clmr_list_local = []
 
         if self.mpi_rank == 0:
-            if n_t_steps < self.mpi_nprocs:
+            if n_time < self.mpi_nprocs:
                 message(
-                    f"Using only {n_t_steps}"
+                    f"Using only {n_time}"
                     "processors for radial decomposition",
                     message_verbosity=2,
                 )
@@ -1451,11 +1463,11 @@ class Interpolate3D(ParallelClassTemplate):
 
         self.radial_decompose()
 
-        self.print_root("Synchronizing", message_verbosity=3)
+        self.message_root("Synchronizing", message_verbosity=3)
 
         self.mpi_comm.Barrier()
 
-        self.print_root(
+        self.message_root(
             "Finished expanding angular modes" "in Chebyshev spectrum...",
             message_verbosity=2,
         )
@@ -1471,40 +1483,40 @@ class Interpolate3D(ParallelClassTemplate):
             # self.initialize_interpolant()
             # self.flatten_assign_Clmr_to_modes_array(modes_Clmr_list_group_all_t)
 
-            self.print_root(
+            self.message_root(
                 "Checks on the constructed inteproland from rank 0",
                 message_verbosity=4,
             )
-            self.print_root(
+            self.message_root(
                 "Shape of interpoland modes",
                 self.interpolant._modes_data.shape,
                 message_verbosity=4,
             )
-            self.print_root(
+            self.message_root(
                 "Time axis of the interolated modes",
                 self.interpolant.time_axis,
                 message_verbosity=4,
             )
-            self.print_root(
+            self.message_root(
                 "Mode 2, 2", self.interpolant.mode(2, 2), message_verbosity=4
             )
 
         self.mpi_comm.Barrier()
 
-        self.print_root(
+        self.message_root(
             "Broadcasting constructed interpolant", message_verbosity=3
         )
 
         self._interpolant = self.mpi_comm.bcast(self.interpolant, root=0)
 
-        self.print_root(
+        self.message_root(
             "Successfully broadcasted constructed interpolant",
             message_verbosity=2,
         )
 
         self.save_interpolant()
 
-        self.print_root(
+        self.message_root(
             "Finished constructing interpolator...", message_verbosity=2
         )
 
@@ -1537,14 +1549,14 @@ class Interpolate3D(ParallelClassTemplate):
                     The value of the function on the requested
                     cartesian gridpoints.
         """
-        self.print_root(
+        self.message_root(
             "Synchronizing before beginning evaluation routine.. ",
             message_verbosity=3,
         )
 
         self.mpi_comm.Barrier()
 
-        self.print_root(
+        self.message_root(
             "Finished synchronizing before beginning" " evaluation routine.. ",
             message_verbosity=2,
         )
@@ -1633,7 +1645,7 @@ class Interpolate3D(ParallelClassTemplate):
         Angular contraction per point will employ openmp
         """
 
-        self.print_root(
+        self.message_root(
             "Evaluating by scattering and vectorization...", message_verbosity=2
         )
 
@@ -1647,7 +1659,7 @@ class Interpolate3D(ParallelClassTemplate):
 
         job_out_list_local = []
 
-        self.print_root("Evaluating at points...", message_verbosity=3)
+        self.message_root("Evaluating at points...", message_verbosity=3)
 
         # local_counts = 0
 
@@ -1713,7 +1725,7 @@ class Interpolate3D(ParallelClassTemplate):
                 # message(f" Progress : {progress} %", message_verbosity=2)
                 #    print(f" Progress : {progress} %")
 
-        self.print_root(
+        self.message_root(
             "Synchronizing before gathering func values.. ", message_verbosity=3
         )
 
@@ -1802,7 +1814,7 @@ class Interpolate3D(ParallelClassTemplate):
 
                 job_out_list_local.append([jobid, fval])
 
-        self.print_root(
+        self.message_root(
             "Synchronizing before gathering func values.. ", message_verbosity=3
         )
 
@@ -1870,7 +1882,7 @@ class Interpolate3D(ParallelClassTemplate):
             calculate = True
 
         if calculate:
-            self.print_root("Creating Ylm cache", message_verbosity=3)
+            self.message_root("Creating Ylm cache", message_verbosity=3)
 
             if np.array(Th).any() == np.array(None):
                 Th = self.sphp_output_grid[t_step][1]
@@ -1939,8 +1951,8 @@ class Interpolate3D(ParallelClassTemplate):
 
             self.mpi_comm.Barrier()
 
-            self.print_root("Created Ylm cache", message_verbosity=3)
-            self.print_root(
+            self.message_root("Created Ylm cache", message_verbosity=3)
+            self.message_root(
                 "Created Ylm cache shape",
                 self.Ylm_cache._modes_data.shape,
                 message_verbosity=4,
@@ -2033,4 +2045,4 @@ class Interpolate3D(ParallelClassTemplate):
 
         self._interpolant = self.mpi_comm.bcast(self.interpolant, root=0)
 
-        self.print_root("Successfully loaded interpolant from file")
+        self.message_root("Successfully loaded interpolant from file")
