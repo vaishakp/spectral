@@ -1,1 +1,19 @@
-Numericalimplementation of various spectral methods
+# spectral
+
+Numerical implementation of various spectral methods.
+
+This library consists of tools and method to transform 1D functions on $R$ and 2D functions on $S^2$ in the coordinate basis
+to those in the spectral basis. This involves,
+1. Fast fourier transforms with the approriate conventions implemented using `numpy`
+2. Chebyshev transforms using collocation points, via matrix multiplication and direct methods
+3. Computation of Spin-weighted spherical harmonics
+	1. to arbitrary precision at a given coordinate ($\theta, \phi$)
+	2. to arbitrary precision on a 2D coordinate grid, parallelized using the `multiprocessing` library.
+	3. to $\approx 11$ digits of precision, fast, via numpy vectorization.
+	4. API to call from `spherepack` implemented via `pyspharm`, and interconversions.
+	5. API to call from `spherical` package and interconversions.
+3. Spin-weighted spherical transforms using uniform and Gauss-Legendre grids
+4. Differentiation of 1D and 2D functions using spectral and finite differencing upto $11^{th}$ order.
+
+These are the basic tools used in applications such as solutions to simple Elliptic and Hyperbolic systems, BMS transformations (implemented in the sister package `waveformtools`, which is the progenitor), handling and computations of Grid data output from SpEC / spectral codes, 3D visualizations, etc.
+

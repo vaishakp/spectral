@@ -513,13 +513,16 @@ def SHExpandSimple(
             message("Regularizing function", message_verbosity=2)
             func = SHRegularize(func, theta_grid, check_reg, order=reg_order)
 
-    result = SingleMode(ell_max=ell_max)
+    result = SingleMode(ell_max=ell_max, extra_mode_axis_shape=func.shape[:-2])
     result._func = func
     cYslm = Yslm_mp(ell_max=ell_max, spin_weight=0, grid_info=grid_info)
     cYslm.run()
 
-    integrand = np.conjugate(cYslm.sYlm_modes._modes_data) * func
-
+    #integrand = np.conjugate(cYslm.sYlm_modes._modes_data) * func
+    integrand = np.einsum('ijk,...jk->i...jk', np.conjugate(cYslm.sYlm_modes._modes_data), # type: ignore
+                           func, 
+                         ) # type: ignore
+    
     Clm = TwoDIntegral(integrand, grid_info, int_method=int_method)
 
     result.set_mode_data(Clm)
