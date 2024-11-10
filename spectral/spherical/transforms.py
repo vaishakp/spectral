@@ -516,7 +516,8 @@ def SHExpandSimple(
     # Check if regularization necessary
     if reg:
         if extra_mode_axis_len>0:
--                raise NotImplementedError(f"Regualarizationin {result.label} is not implememted for tensor expansions")
+            raise NotImplementedError(f"Regualarizationin {result.label} is not implememted for tensor expansions")
+
         if check_reg is None:
             check_reg = CheckRegReq(func)
 
@@ -733,7 +734,7 @@ def ComputeErrorInfo(
         # Deregularize if necessary
         if reg:
             if len(result.extra_mode_axis_shape)>0:
--               raise NotImplementedError(f"Regualarization for {result.label} is not implememted for tensor expansions")
+                raise NotImplementedError(f"Regualarization for {result.label} is not implememted for tensor expansions")
 
             if np.array(check_reg).any() > 0:
                 message(
