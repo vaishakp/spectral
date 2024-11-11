@@ -139,7 +139,13 @@ def SHExpand(
             )
     elif method_info.swsh_routine == "waveformtools_slow":
         results = SHExpandSimpleSlow(
-            func, info, method_info, error_info, reg=reg, reg_order=reg_order, label=label,
+            func,
+            info,
+            method_info,
+            error_info,
+            reg=reg,
+            reg_order=reg_order,
+            label=label,
         )
     elif method_info.swsh_routine == "spherical":
         results = SHExpandSpherical(
@@ -398,7 +404,8 @@ def SHExpandAuto(
         if reg:
             if np.array(check_reg).any() > 0:
                 message(
-                    f"De-regularizing function {label} " "for RMS deviation computation",
+                    f"De-regularizing function {label} "
+                    "for RMS deviation computation",
                     message_verbosity=2,
                 )
 
@@ -503,7 +510,7 @@ def SHExpandSimple(
     import sys
 
     orig_func = func.copy()
-    extra_mode_axis_len = len(orig_func.shape)-2
+    extra_mode_axis_len = len(orig_func.shape) - 2
 
     theta_grid, phi_grid = grid_info.meshgrid
     ell_max = method_info.ell_max
@@ -515,8 +522,10 @@ def SHExpandSimple(
 
     # Check if regularization necessary
     if reg:
-        if extra_mode_axis_len>0:
-            raise NotImplementedError(f"Regualarizationin {result.label} is not implememted for tensor expansions")
+        if extra_mode_axis_len > 0:
+            raise NotImplementedError(
+                f"Regualarizationin {result.label} is not implememted for tensor expansions"
+            )
 
         if check_reg is None:
             check_reg = CheckRegReq(func)
@@ -530,10 +539,12 @@ def SHExpandSimple(
     cYslm = Yslm_mp(ell_max=ell_max, spin_weight=0, grid_info=grid_info)
     cYslm.run()
 
-    #integrand = np.conjugate(cYslm.sYlm_modes._modes_data) * func
-    integrand = np.einsum('ijk,...jk->i...jk', np.conjugate(cYslm.sYlm_modes._modes_data), # type: ignore
-                           func, 
-                         ) # type: ignore
+    # integrand = np.conjugate(cYslm.sYlm_modes._modes_data) * func
+    integrand = np.einsum(
+        "ijk,...jk->i...jk",
+        np.conjugate(cYslm.sYlm_modes._modes_data),  # type: ignore
+        func,
+    )  # type: ignore
     Clm = TwoDIntegral(integrand, grid_info, int_method=int_method)
 
     result.set_mode_data(Clm)
@@ -699,11 +710,10 @@ def ComputeErrorInfo(
     from spectral.spherical.Yslm_mp import Yslm_mp
 
     theta_grid, phi_grid = grid_info.meshgrid
-    #recon_func = np.zeros(grid_info.shape, dtype=np.complex128)
-    #reg_recon_func = np.zeros(grid_info.shape, dtype=np.complex128)
+    # recon_func = np.zeros(grid_info.shape, dtype=np.complex128)
+    # reg_recon_func = np.zeros(grid_info.shape, dtype=np.complex128)
     recon_func = np.zeros(orig_func.shape, dtype=np.complex128)
     reg_recon_func = np.zeros(orig_func.shape, dtype=np.complex128)
-
 
     # Compute the full RMS deviation from zero
     Rerr, Amin, Amax = RMSerrs(orig_func, recon_func, grid_info)
@@ -718,22 +728,26 @@ def ComputeErrorInfo(
     # Compute unsummed vetor product
     Ylm_vec = sYlm.sYlm_modes._modes_data.transpose((1, 2, 0))
     _, _, modes_data_len = Ylm_vec.shape
-    #val_vec = result._modes_data[:modes_data_len] * Ylm_vec
-    val_vec = np.einsum('tpm,m...->...tpm', Ylm_vec, result._modes_data[:modes_data_len])
+    # val_vec = result._modes_data[:modes_data_len] * Ylm_vec
+    val_vec = np.einsum(
+        "tpm,m...->...tpm", Ylm_vec, result._modes_data[:modes_data_len]
+    )
 
     # Compute powers
     for ell in range(ell_max + 1):
         modes_idx_prev = ell**2
         modes_idx = (ell + 1) ** 2
-        
+
         reg_recon_func += np.sum(
             val_vec[..., modes_idx_prev:modes_idx], axis=(-1)
         )
 
         # Deregularize if necessary
         if reg:
-            if len(result.extra_mode_axis_shape)>0:
-                raise NotImplementedError(f"Regualarization for {result.label} is not implememted for tensor expansions")
+            if len(result.extra_mode_axis_shape) > 0:
+                raise NotImplementedError(
+                    f"Regualarization for {result.label} is not implememted for tensor expansions"
+                )
 
             if np.array(check_reg).any() > 0:
                 message(
@@ -758,12 +772,14 @@ def ComputeErrorInfo(
     result.residuals = all_res
     result.residual_axis = np.arange(-1, ell_max + 1)
 
-    #conv = round(100 * Rerr / all_res[0], 2)
+    # conv = round(100 * Rerr / all_res[0], 2)
     conv = round(100 * np.amax(abs(Rerr)) / np.amax(abs(all_res[0])), 2)
 
-    #if all_res[0] > 1e-8 and conv > 10:
+    # if all_res[0] > 1e-8 and conv > 10:
     if np.amax(abs(all_res[0])) > 1e-10 and conv > 10:
-        message(f"{conv}% Residue warning for {result.label}! ", message_verbosity=0)
+        message(
+            f"{conv}% Residue warning for {result.label}! ", message_verbosity=0
+        )
         message(f"Error report for {result.label}: \n\t {result.error_info}")
 
     return result
@@ -886,7 +902,9 @@ def SHExpandSpherical(
     return result
 
 
-def modes_spack_to_wftools(spack_modes, func, grid_info, error_info, ell_max, label=None):
+def modes_spack_to_wftools(
+    spack_modes, func, grid_info, error_info, ell_max, label=None
+):
     """Convert the modes in spherepack conventaion to modes
     in wftools notation"""
 
@@ -894,7 +912,9 @@ def modes_spack_to_wftools(spack_modes, func, grid_info, error_info, ell_max, la
 
     from waveformtools.single_mode import SingleMode
 
-    wf_modes = SingleMode(spin_weight=0, ell_max=ell_max, Grid=grid_info,  label=label, func=func)
+    wf_modes = SingleMode(
+        spin_weight=0, ell_max=ell_max, Grid=grid_info, label=label, func=func
+    )
 
     factor = np.sqrt(2 * np.pi)
 

@@ -20,19 +20,19 @@ import matplotlib.pyplot as plt
 
 
 class Interpolate3D(ParallelClassTemplate):
-    ''' Construct a spectral interpolant over a Gauss-Legendre-Lobatto 
-    grid and evaluate at the requested points. 
-    
-    The interpolation is carried out in a fully vectorized manner. 
-    The angular decomposition on every shell is vectorized, and the 
-    radial decomposition of each obtained angular mode coefficient 
-    :math:`\\C_{\ell m}` is also vectorized. 
+    """Construct a spectral interpolant over a Gauss-Legendre-Lobatto
+    grid and evaluate at the requested points.
+
+    The interpolation is carried out in a fully vectorized manner.
+    The angular decomposition on every shell is vectorized, and the
+    radial decomposition of each obtained angular mode coefficient
+    :math:`\\C_{\ell m}` is also vectorized.
 
     The evaluation is also done in parallel. First, angular coordinates at the
     same radial point are grouped together. The parallelization happends over
     groups.
 
-    Withing each group, the raidal evaluation is done first, then the angular 
+    Withing each group, the raidal evaluation is done first, then the angular
     contraction.
 
     The improvement of this over the previous non-vectorized method is that:
@@ -44,7 +44,8 @@ class Interpolate3D(ParallelClassTemplate):
 
     Thus, MPI is only used during evaluation.
 
-    '''
+    """
+
     def __init__(
         self,
         r_min,
@@ -144,7 +145,6 @@ class Interpolate3D(ParallelClassTemplate):
         """The resulting data after interpolation"""
 
         return self._interpolated_data
-
 
     @property
     def interpolant(self):

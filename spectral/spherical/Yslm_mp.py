@@ -10,7 +10,6 @@ from warnings import warn
 #
 
 
-
 class Yslm_mp:
     """Evaluate the spin weighted spherical harmonics
     asynchronously on multiple processors at any precision
@@ -29,7 +28,8 @@ class Yslm_mp:
            harmonics.
     nprocs : int
              The number of processors to use. Defaults to half the available.
-    """    
+    """
+
     _Yslm_mp_cache = {}
 
     def __init__(
@@ -196,7 +196,10 @@ class Yslm_mp:
 
     def test_mp(self, mode_number):
         """Print a simple test output message"""
-        message(f"This is process {os.getpid()} processing mode {mode_number}\n", message_verbosity=1)
+        message(
+            f"This is process {os.getpid()} processing mode {mode_number}\n",
+            message_verbosity=1,
+        )
         return 1
 
     def __getstate__(self):
@@ -212,27 +215,27 @@ class Yslm_mp:
     def is_available_in_cache(self):
         """Check if the current parameters are available in cache"""
 
-        availability=False
+        availability = False
 
         if self.cache:
             if self.spin_weight in self._Yslm_mp_cache.keys():
                 if self.ell_max in self._Yslm_mp_cache[self.spin_weight].keys():
-                    #print("Retrieving from cache")
+                    # print("Retrieving from cache")
                     availability = True
 
-        #print(availability, self._Yslm_mp_cache)
+        # print(availability, self._Yslm_mp_cache)
 
         return availability
 
     def update_cache(self):
         """Update cache after computation for faster retrieval"""
-        #print("Updating cache")
+        # print("Updating cache")
         if self.cache:
             Yslm_mp._Yslm_mp_cache.update(
                 {self.spin_weight: {self.ell_max: self._sYlm_modes}}
             )
 
-        #print(Yslm_mp._Yslm_mp_cache)
+        # print(Yslm_mp._Yslm_mp_cache)
 
     def store_as_modes(self):
         """Store the results as modes"""

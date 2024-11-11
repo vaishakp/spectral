@@ -20,10 +20,10 @@ import matplotlib.pyplot as plt
 
 
 class Interpolate3D(ParallelClassTemplate):
-    ''' Construct a spectral interpolant over a Gauss-Legendre-Lobatto 
-    grid and evaluate at the requested points. 
-    
-    The interpolation is carried out using N mpi workers. The angular 
+    """Construct a spectral interpolant over a Gauss-Legendre-Lobatto
+    grid and evaluate at the requested points.
+
+    The interpolation is carried out using N mpi workers. The angular
     decomposition on every shell and the radial decomposision of each
     obtained angular mode coefficient :math:`\\C_{\ell m}` is distributed
     to MPI processors.
@@ -32,11 +32,12 @@ class Interpolate3D(ParallelClassTemplate):
     same radial point are grouped together. The parallelization happends over
     groups.
 
-    Withing each group, the raidal evaluation is done first, then the angular 
+    Withing each group, the raidal evaluation is done first, then the angular
     contraction.
 
 
-    '''
+    """
+
     def __init__(
         self,
         r_min,
@@ -136,7 +137,6 @@ class Interpolate3D(ParallelClassTemplate):
         """The resulting data after interpolation"""
 
         return self._interpolated_data
-
 
     @property
     def interpolant(self):

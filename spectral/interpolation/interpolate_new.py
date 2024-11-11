@@ -87,7 +87,7 @@ class Interpolate3D(ParallelClassTemplate):
     6. Radial decompositions of each angular mode is MPI paralellzed across time. Withinn each time step,
        the Clmr decomposition to Clmq are vectorized i.e. Clmrt -> Clmpt (radial physical to spectral) are MPI Parallelized
        over t and vectorized over lm.
-    7. Evaluations are MPI parallelized within each time step but not across 
+    7. Evaluations are MPI parallelized within each time step but not across
        it.
 
     """

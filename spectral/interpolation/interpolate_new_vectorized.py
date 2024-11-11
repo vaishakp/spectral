@@ -81,7 +81,7 @@ class Interpolate3D(ParallelClassTemplate):
        across all time steps
     2. The data from all time steps are pooled together before angular expansion happens
     3. Each shell is labelled with r and t
-    4. Angular decompositions are fully vectorized over r and t i.e. one shell for 
+    4. Angular decompositions are fully vectorized over r and t i.e. one shell for
        each r and t is distributed to one MPI worker.
     4. After angular expansion, one has Clmrt
     5. Clm modes on all lines of sight in r and from across time steps are pooled together.
@@ -89,7 +89,7 @@ class Interpolate3D(ParallelClassTemplate):
        i.e. Clmrt -> Clmpt (radial physical to spectral) are fully vectorized over r and t.
     7. If needed, interpolation over time can be carried out using either another chebyshev expansion
        or a spline interpolation.
-    7. Evaluations are MPI parallelized within each time step but not across 
+    7. Evaluations are MPI parallelized within each time step but not across
        it.
 
     Evaluation strategy
@@ -163,7 +163,7 @@ class Interpolate3D(ParallelClassTemplate):
     def shape(self):
         """The shape of input raw data.
         The first axis is assumed to be the time axis,
-        followed by x,y,z """
+        followed by x,y,z"""
 
         if (np.array(self._shape) == np.array(None)).all():
             self._shape = np.array(self.raw_data).shape
@@ -172,12 +172,12 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def time_axis(self):
-        ''' The time axis of the data set '''
+        """The time axis of the data set"""
         return self._time_axis
 
     @property
     def label(self):
-        ''' A label for the run/dataset '''
+        """A label for the run/dataset"""
         return self._label
 
     @property
@@ -213,7 +213,7 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def r_max(self):
-        """The radius of the largest radial shell 
+        """The radius of the largest radial shell
         present in the input grid"""
         if self._r_max is None:
             raise KeyError("Please provide r_max of the input grid")
@@ -222,7 +222,7 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def output_grid(self):
-        """The output coordinate grid interpolated onto """
+        """The output coordinate grid interpolated onto"""
 
         return self._output_grid
 
@@ -230,7 +230,7 @@ class Interpolate3D(ParallelClassTemplate):
     def raw_data(self):
         """The data to be interpolated, in a specified
         coordinate system. The coordinate system is specified
-         at xxx """
+         at xxx"""
 
         return self._raw_data
 
@@ -242,25 +242,25 @@ class Interpolate3D(ParallelClassTemplate):
     @property
     def interpolated_data(self):
         """The data interpolated onto the
-        output cartesian grid """
+        output cartesian grid"""
         return self._interpolated_data
 
     @property
     def input_ang_grid(self):
-        """The angular grid of the input raw data. 
-        This is an object of the Gauss-Legendre grid 
-        class """
+        """The angular grid of the input raw data.
+        This is an object of the Gauss-Legendre grid
+        class"""
         return self._input_ang_grid
 
     @property
     def input_grid(self):
-        ''' A proxy to the combined (radial, angular) input grid '''
+        """A proxy to the combined (radial, angular) input grid"""
         return self._input_grid
 
     @property
     def radial_grid(self):
         """The radial collocation points of the
-        input grid. These are the Gauss-Lobatto points """
+        input grid. These are the Gauss-Lobatto points"""
         return self._radial_grid
 
     @property
@@ -271,8 +271,8 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def ang_args_order(self):
-        """ A list contining the job ids/ indices of the ordered
-        data """
+        """A list contining the job ids/ indices of the ordered
+        data"""
         return self._ang_args_order
 
     @property
@@ -283,19 +283,19 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def num_coord_groups(self):
-        """The number of groups in the coordinate group list. This is 
+        """The number of groups in the coordinate group list. This is
         equal to the maximum number of MPI jobs that can run
-        in parallel """
+        in parallel"""
         return len(self.coords_groups_list)
 
     @property
     def saved_interpolant_file(self):
-        ''' Path to the saved interpolant '''
+        """Path to the saved interpolant"""
         return self._saved_interpolant_file
 
     @property
     def Ylm_cache(self):
-        """The cached Ylm data for quick organized evaluation 
+        """The cached Ylm data for quick organized evaluation
         of the interpolant.
 
         In organized evaluation, the points to be interpolated onto
@@ -310,8 +310,8 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def axis_rotation_angles(self):
-        ''' The rotation angles of the line joining the BHs.
-        This will be a 1D array along time '''
+        """The rotation angles of the line joining the BHs.
+        This will be a 1D array along time"""
 
         return self._axis_rotation_angles
 
@@ -906,7 +906,7 @@ class Interpolate3D(ParallelClassTemplate):
     def get_radial_spectrum_vec(self, t_step):
         """Get the radial spectum of Clm modes
         for a given t_step from the list of ordered
-        single_modes obj """
+        single_modes obj"""
 
         this_t_Clm_r_modes = self._reordered_Clm_modes_t_r_flat_list[t_step]
 
@@ -1164,7 +1164,9 @@ class Interpolate3D(ParallelClassTemplate):
             for item in modes_Clmr_at_t_step:
                 tstep2, ell, emm, mode_data = item
 
-                self.message_root(f"Nested t step {t_step}", message_verbosity=4)
+                self.message_root(
+                    f"Nested t step {t_step}", message_verbosity=4
+                )
 
                 self.message_root(
                     f"Setting l {ell} m {emm} mode data", message_verbosity=4
@@ -1245,7 +1247,9 @@ class Interpolate3D(ParallelClassTemplate):
             for item in modes_Clmr_at_t_step:
                 tstep2, ell, emm, mode_data = item
 
-                self.message_root(f"Nested t step {t_step}", message_verbosity=4)
+                self.message_root(
+                    f"Nested t step {t_step}", message_verbosity=4
+                )
 
                 self.message_root(
                     f"Setting l {ell} m {emm} mode data", message_verbosity=4
