@@ -42,59 +42,66 @@ class Interpolate3D(ParallelClassTemplate):
                    physical space.
 
     coord_centres : list, optional
-                    A list containing the three
-                    coordinate values of the
-                    location of the geometric
+                    A list containing sets of 
+                    the three coordinate values of 
+                    the location of the geometric
                     centroid of the surface
                     onto which the data is
                     being interpolated.
 
                     If not supplied, then it is assumed
-                    that they are zeros.
+                    that they are zeros i.e. [[0, 0, 0], ...].
 
     sphp_output_grid : list, optional
-                       A list containing three sublists:
-                       [R, Theta, Phi] of the spherical polar
+                       A list containing sets of three sublists:
+                       i.e. [[R, Theta, Phi],...] of the spherical polar
                        coordinates / mesh of
                        the interpolation surface.
 
                        If not specified, then `cart_output_grid`
                        is used.
 
-    cart_output_grid : list, optional
+    cart_output_grid : list/4darray, optional
                        A list containing three sublists:
-                       [X, Y, Z] of the cartesian
+                       i.e. [[X, Y, Z],...]of the cartesian
                        coordinates / mesh of
                        the interpolation surface.
+                       This can also be a 4d array of the
+                       shape (time, x, y, z)
 
                        If not specified, then `sphp_output_grid`
                        is used.
+
     raw_data        : ndarray
                       The array with the same
                       shape as that of the coordinates
-                      containing the data to be interpolated
+                      containing the data to be interpolated.
 
     Notes
     -----
     Decoposition strategy
     1. Assumes the same number of radial and angular collocation points
-       across all time steps
-    2. The data from all time steps are pooled together before angular expansion happens
+       across all time steps.
+    2. The data from shells from all time steps are pooled together before angular expansion happens
     3. Each shell is labelled with r and t
     4. Angular decompositions are fully vectorized over r and t i.e. one shell for
        each r and t is distributed to one MPI worker.
-    4. After angular expansion, one has Clmrt
-    5. Clm modes on all lines of sight in r and from across time steps are pooled together.
+    4. After angular expansion, one has C_lmrt
+    5. C_lm modes on all lines of sight in r and from across time steps are pooled together.
     6. Radial decompositions of the angular modes on all rays (over lm and time) are vectorized.
-       i.e. Clmrt -> Clmpt (radial physical to spectral) are fully vectorized over r and t.
-    7. If needed, interpolation over time can be carried out using either another chebyshev expansion
-       or a spline interpolation.
-    7. Evaluations are MPI parallelized within each time step but not across
-       it.
+       i.e. C_lmrt -> Clmpt (radial physical to spectral) are fully vectorized over r and t.
+    7. If needed, interpolation over time can be carried out using a spline interpolation.
+    8. Only evaluations are parallelized.
+  
 
     Evaluation strategy
     1. The spectral eval parameter space is (t, r, theta, phi)
     2. Evaluations can be distributed to MPI processors individually.
+    3. Evaluations are MPI parallelized within each time step but not across
+    it. So evaluations within a given time step are carried out by grouping coordinates
+    having multiple angular positions at a single shell. Evaluations are vectorized
+    within a shell/coordianate group but MPI parallelized across ccordinate groups.
+
     """
 
     def __init__(
@@ -170,6 +177,10 @@ class Interpolate3D(ParallelClassTemplate):
 
         return self._shape
 
+    @property
+    def ntime(self):
+        return self.shape[0]
+    
     @property
     def time_axis(self):
         """The time axis of the data set"""
@@ -364,7 +375,7 @@ class Interpolate3D(ParallelClassTemplate):
         self._input_grid = [self.radial_grid, self.input_ang_grid]
 
         # Output coordinate grid setup
-        if np.array(self.sphp_output_grid).all() == np.array(None):
+        if (np.array(self.sphp_output_grid) == np.array(None)).all():
 
             if np.array(self.cart_output_grid).all() == np.array(None):
                 raise KeyError(
@@ -373,7 +384,6 @@ class Interpolate3D(ParallelClassTemplate):
                     "or spherical polar coordinates"
                 )
             else:
-
                 self.message_root(
                     "Reaing in Cart3D Output grid...", message_verbosity=2
                 )
@@ -389,9 +399,14 @@ class Interpolate3D(ParallelClassTemplate):
                     # Transform cart to spherical
                     X, Y, Z = self.cart_output_grid[t_step]
 
-                    if np.array(self.coord_centers).all() == np.array(None):
+                    # Check if cood centres are given. If not 
+                    # initialize
+                    if (np.array(self.coord_centers) == np.array(None)).all():
                         self._coord_centers = []  # [0, 0, 0]
 
+                    # Check if coord centres are specified at each time
+                    # step. If not assume them to be the initial value
+                    # i.e. at the origin
                     if len(self.coord_centers) < (t_step + 1):
                         coord_centers = [0, 0, 0]
                         self._coord_centers.append(coord_centers)
@@ -400,7 +415,8 @@ class Interpolate3D(ParallelClassTemplate):
                         coord_centers = self.coord_centers[t_step]
 
                     # xcom, ycom, zcom = self.coord_centers
-
+                    # Transform the cartesian output grid to 
+                    # spherical polar
                     sphp_output_grid.append(
                         ToSphericalPolar([X, Y, Z], coord_centers)
                     )
@@ -433,13 +449,13 @@ class Interpolate3D(ParallelClassTemplate):
 
         self.message_root("Initializing the interpolant object...")
 
-        if np.array(self._interpolant).all() != np.array(None):
+        if (np.array(self._interpolant) != np.array(None)).all():
             raise ValueError("The interpolant has already been initialized ! ")
 
         Clmrt = modes_array(
             ell_max=self._method_info.ell_max,
             extra_mode_axis_len=self.shape[1],
-            data_len=self.shape[0],
+            data_len=self.ntime,
             spin_weight=0,
             time_axis=self.time_axis,
         )
@@ -461,7 +477,7 @@ class Interpolate3D(ParallelClassTemplate):
         # theta_axis_1d = self.sphp_output_grid[t_index][1][:, 0]
         # theta_equator_index = np.argmin(abs(theta_axis_1d - np.pi/2))
         # phi_rotation_angles =
-        for t_index in range(self.shape[0]):
+        for t_index in range(self.ntime):
             _, Theta, Phi = self.sphp_output_grid[t_index]
             theta_axis_1d = self.sphp_output_grid[t_index][2][:, 0]
             theta_equator_index = np.argmin(abs(theta_axis_1d - np.pi / 2))
@@ -475,7 +491,7 @@ class Interpolate3D(ParallelClassTemplate):
         by applying the optimum rotation"""
 
         # Rotate the coordinates to match with SpEC's
-        for t_index in range(self.shape[0]):
+        for t_index in range(self.ntime):
 
             rotated_phi_output_grid = (
                 self._sphp_output_grid[t_index][2]
@@ -490,7 +506,7 @@ class Interpolate3D(ParallelClassTemplate):
         by applying the optimum rotation"""
 
         # Rotate the coordinates to match with SpEC's
-        for t_index in range(self.shape[0]):
+        for t_index in range(self.ntime):
 
             derotated_phi_output_grid = (
                 self._sphp_output_grid[t_index][2]
@@ -578,7 +594,7 @@ class Interpolate3D(ParallelClassTemplate):
         """Carry out the radial decomposition of the
         Clm s at all t steps"""
 
-        n_time = self.shape[0]
+        n_time = self.ntime
 
         local_radial_decomp_list = []
 
@@ -680,7 +696,7 @@ class Interpolate3D(ParallelClassTemplate):
         coords_groups_list = []
         ang_args_order_list = []
 
-        for t_step in range(self.shape[0]):
+        for t_step in range(self.ntime):
 
             one_coords_groups_list, one_ang_args_order = ReorganizeCoords(
                 self.sphp_output_grid[t_step]
@@ -1028,7 +1044,7 @@ class Interpolate3D(ParallelClassTemplate):
                 message_verbosity=4,
             )
 
-            n_time = self.shape[0]
+            n_time = self.ntime
             n_radii = self.shape[1]
 
             for t_step in range(n_time):
@@ -1139,7 +1155,7 @@ class Interpolate3D(ParallelClassTemplate):
         )
 
         # Assign modes for every ell, emm at every time step
-        for t_step in range(self.shape[0]):
+        for t_step in range(self.ntime):
 
             modes_Clmr_at_t_step = self.get_Clmr_modes_at_t_step(
                 t_step, modes_Clmr_t_flat_list
@@ -1214,7 +1230,7 @@ class Interpolate3D(ParallelClassTemplate):
         job_indices = [item[0] for item in modes_Clmr_t_flat_list]
         # Assign modes for every ell, emm at every time step
 
-        for t_step in range(self.shape[0]):
+        for t_step in range(self.ntime):
 
             modes_Clmr_at_t_step = self.get_Clmr_modes_at_t_step(
                 t_step, modes_Clmr_t_flat_list
@@ -1335,7 +1351,7 @@ class Interpolate3D(ParallelClassTemplate):
         n_radii = self.shape[1]
         r_indices_at_t_step = np.arange(n_r)
 
-        n_time = self.shape[0]
+        n_time = self.ntime
 
         total_nang_decomps = n_radii * n_time
 
@@ -1567,7 +1583,7 @@ class Interpolate3D(ParallelClassTemplate):
 
         evaluated_interpolant = []
 
-        for t_step in range(self.shape[0]):
+        for t_step in range(self.ntime):
             R, Th, Ph = self.sphp_output_grid[t_step]
 
             self.reorganize_coords()
