@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 config.conf_matplolib()
 import sys
 
-sys.path.append("/mnt/pfs/vaishak.p/Projects/Codes/custom_libraries/sxstools")
 from sxstools.transforms import GetSphereRadialExtents, GetDomainRadii
 from config import verbosity
 
