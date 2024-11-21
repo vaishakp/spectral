@@ -15,7 +15,6 @@ from waveformtools.waveforms import modes_array
 
 import pickle
 import sys
-sys.path.append('/mnt/pfs/vaishak.p/Projects/Codes/custom_libraries/sxstools')
 
 from sxstools.transforms import (
     ToSphericalPolar,
@@ -24,6 +23,9 @@ from sxstools.transforms import (
     get_radial_clms,
     AngContract,
 )
+
+from sxstools.data_loader import SXSDataLoader
+
 
 import time
 
@@ -107,6 +109,7 @@ class Interpolate3D(ParallelClassTemplate):
         saved_interpolant_file=None,
         label="func",
         time_axis=None,
+        sxs_data_loader=None,
     ):
         super().__init__()
 
@@ -155,6 +158,7 @@ class Interpolate3D(ParallelClassTemplate):
         self._local_Ylm_data_cache_dict = {}
         self._saved_interpolant_file = saved_interpolant_file
         self._axis_rotation_angles = None
+        self._sxs_data_loder = sxs_data_loader
 
         # Setup engine
         self.initialize_parallel_engine()
@@ -165,7 +169,7 @@ class Interpolate3D(ParallelClassTemplate):
         """The number of input raw data.
         The first axis is assumed to be the time axis"""
 
-        if np.array(self._shape).all() == np.array(None):
+        if (np.array(self._shape) == np.array(None)).all():
             self._shape = np.array(self.raw_data).shape
 
         return self._shape
@@ -306,6 +310,10 @@ class Interpolate3D(ParallelClassTemplate):
     def axis_rotation_angles(self):
         return self._axis_rotation_angles
 
+    @property
+    def sxs_data_loader(self):
+        return self._sxs_data_loder
+    
     ####################################
     # Initialize
     ####################################
@@ -326,8 +334,11 @@ class Interpolate3D(ParallelClassTemplate):
 
         self.message_root("\tNum of radial points", n_r, message_verbosity=2)
 
-        self._input_ang_grid = GLGrid(L=n_theta - 1)
-
+        if self.sxs_data_loader is None:
+            self._input_ang_grid = GLGrid(L=n_theta - 1)
+        else:
+            self._input_ang_grid = self.sxs_data_loader.AngularGrid
+        
         self.message_root(
             "\tL grid of expansion", self.input_ang_grid.L, message_verbosity=2
         )
@@ -341,9 +352,13 @@ class Interpolate3D(ParallelClassTemplate):
             message_verbosity=3,
         )
 
-        self._radial_grid = ChebyshevSpectral(
-            a=self.r_min, b=self.r_max, Nfuncs=self.shape[1]
-        )
+        if self.sxs_data_loader is None:
+            self._radial_grid = ChebyshevSpectral(
+                a=self.r_min, b=self.r_max, Nfuncs=self.shape[1]
+            )
+        
+        else:
+            self._radial_grid = self.sxs_data_loader.RadialGrid
 
         self.message_root(
             "\tCreated Chebyshev radial grid "
@@ -431,7 +446,7 @@ class Interpolate3D(ParallelClassTemplate):
 
         self.message_root("Initializing the interpolant object...")
 
-        if np.array(self._interpolant).all() != np.array(None):
+        if (np.array(self._interpolant) != np.array(None)).all():
             raise ValueError("The interpolant has already been initialized ! ")
 
         Clmrt = modes_array(

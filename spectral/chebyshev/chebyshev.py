@@ -53,7 +53,7 @@ class ChebyshevSpectral:
     @property
     def collocation_points_logical(self):
 
-        if np.array(self._collocation_points_logical).all() == np.array(None):
+        if (np.array(self._collocation_points_logical) == np.array(None)).all():
 
             message("Computing logical collocation points", message_verbosity=2)
             Naxis = np.arange(self.Nfuncs)
@@ -68,7 +68,7 @@ class ChebyshevSpectral:
     @property
     def collocation_points_physical(self):
 
-        if np.array(self._collocation_points_physical).all() == np.array(None):
+        if (np.array(self._collocation_points_physical) == np.array(None)).all():
             # Naxis = np.arange(self.Nfuncs+1)
             message(
                 "Computing physical collocation points", message_verbosity=2
@@ -89,7 +89,7 @@ class ChebyshevSpectral:
         representation of the function to the Chebyshev polynomial
         basis."""
 
-        if np.array(self._MatrixPhysToSpec).all() == np.array(None):
+        if (np.array(self._MatrixPhysToSpec) == np.array(None)).all():
             # N_coord_points = len(x_logical_axis)
             message("Computing ToSpec", message_verbosity=2)
             # self._MatrixPhysToSpec = ToSpecMatrixDirect(self.collocation_points_logical)
@@ -106,7 +106,7 @@ class ChebyshevSpectral:
         representation of the function from the Chebyshev polynomial
         basis."""
 
-        if np.array(self._MatrixSpecToPhys).all() == np.array(None):
+        if (np.array(self._MatrixSpecToPhys) == np.array(None)).all():
 
             message("Computing ToPhys", message_verbosity=2)
 
@@ -125,7 +125,7 @@ class ChebyshevSpectral:
         matrix maps them to the derivate in physical coords
         `x_physical_axis`"""
 
-        if np.array(self._MatrixD).all() == np.array(None):
+        if (np.array(self._MatrixD) == np.array(None)).all():
             print("Computing MatrixD")
             self._MatrixD = (
                 2 / (self.b - self.a)
@@ -143,7 +143,7 @@ class ChebyshevSpectral:
         of the basis functions. Given the physical coeffs, this
         matrix maps them to the derivate in physical coords `x_logical_axis`"""
 
-        if np.array(self._MatrixDD).all() == np.array(None):
+        if (np.array(self._MatrixDD) == np.array(None)).all():
 
             message("Computing MatrixDD", message_verbosity=2)
 
@@ -194,9 +194,7 @@ class ChebyshevSpectral:
         message(f"Value of x_log {x_log}", message_verbosity=4)
 
         # if x in self.collocation_points_logical:
-
         #    ind = np.argmin(abs(self.collocation_points_logical - x))
-
         #    basis_val = self.Bas
 
         return self.ChebyshevBasisSet.ChebBasisEval(x_log, order)
