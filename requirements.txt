@@ -9,5 +9,7 @@ datetime
 sympy
 numpydoc
 config @ git+https://gitlab.com/vaishakp/config@master
+sxstools @ git+https://github.com/vaishakp/sxstools@main
+waveformtools
 recommonmark
 sphinx-rtd-theme
