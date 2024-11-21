@@ -42,8 +42,8 @@ class Interpolate3D(ParallelClassTemplate):
                    physical space.
 
     coord_centres : list, optional
-                    A list containing sets of 
-                    the three coordinate values of 
+                    A list containing sets of
+                    the three coordinate values of
                     the location of the geometric
                     centroid of the surface
                     onto which the data is
@@ -92,7 +92,7 @@ class Interpolate3D(ParallelClassTemplate):
        i.e. C_lmrt -> Clmpt (radial physical to spectral) are fully vectorized over r and t.
     7. If needed, interpolation over time can be carried out using a spline interpolation.
     8. Only evaluations are parallelized.
-  
+
 
     Evaluation strategy
     1. The spectral eval parameter space is (t, r, theta, phi)
@@ -180,7 +180,7 @@ class Interpolate3D(ParallelClassTemplate):
     @property
     def ntime(self):
         return self.shape[0]
-    
+
     @property
     def time_axis(self):
         """The time axis of the data set"""
@@ -399,7 +399,7 @@ class Interpolate3D(ParallelClassTemplate):
                     # Transform cart to spherical
                     X, Y, Z = self.cart_output_grid[t_step]
 
-                    # Check if cood centres are given. If not 
+                    # Check if cood centres are given. If not
                     # initialize
                     if (np.array(self.coord_centers) == np.array(None)).all():
                         self._coord_centers = []  # [0, 0, 0]
@@ -415,7 +415,7 @@ class Interpolate3D(ParallelClassTemplate):
                         coord_centers = self.coord_centers[t_step]
 
                     # xcom, ycom, zcom = self.coord_centers
-                    # Transform the cartesian output grid to 
+                    # Transform the cartesian output grid to
                     # spherical polar
                     sphp_output_grid.append(
                         ToSphericalPolar([X, Y, Z], coord_centers)

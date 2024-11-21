@@ -1,4 +1,4 @@
-#from joblib import Parallel
+# from joblib import Parallel
 from mpi4py import MPI
 import numpy as np
 from pathlib import Path
@@ -177,7 +177,7 @@ class Interpolate3D(ParallelClassTemplate):
     @property
     def n_time(self):
         return self.shape[0]
-    
+
     @property
     def time_axis(self):
         return self._time_axis
@@ -313,7 +313,7 @@ class Interpolate3D(ParallelClassTemplate):
     @property
     def sxs_data_loader(self):
         return self._sxs_data_loder
-    
+
     ####################################
     # Initialize
     ####################################
@@ -338,7 +338,7 @@ class Interpolate3D(ParallelClassTemplate):
             self._input_ang_grid = GLGrid(L=n_theta - 1)
         else:
             self._input_ang_grid = self.sxs_data_loader.AngularGrid
-        
+
         self.message_root(
             "\tL grid of expansion", self.input_ang_grid.L, message_verbosity=2
         )
@@ -356,7 +356,7 @@ class Interpolate3D(ParallelClassTemplate):
             self._radial_grid = ChebyshevSpectral(
                 a=self.r_min, b=self.r_max, Nfuncs=self.shape[1]
             )
-        
+
         else:
             self._radial_grid = self.sxs_data_loader.RadialGrid
 
@@ -372,7 +372,7 @@ class Interpolate3D(ParallelClassTemplate):
 
         # Output coordinate grid setup
         if (np.array(self.sphp_output_grid) == np.array(None)).all():
-            
+
             self.message_root("\t SPHP grid no found")
 
             if np.array(self.cart_output_grid).all() == np.array(None):
@@ -418,7 +418,8 @@ class Interpolate3D(ParallelClassTemplate):
 
         else:
             self.message_root(
-                "\tLoading in Inertial SPHP Output Grid and transforming to Comoving frame...", message_verbosity=2
+                "\tLoading in Inertial SPHP Output Grid and transforming to Comoving frame...",
+                message_verbosity=2,
             )
 
         assert len(self.sphp_output_grid) == n_t, (
@@ -433,12 +434,16 @@ class Interpolate3D(ParallelClassTemplate):
             message_verbosity=2,
         )
 
-        if self.mpi_rank==0:
+        if self.mpi_rank == 0:
             self.compute_rotation_angles()
             self.align_coordinate_system()
 
-        self._axis_rotation_angles = self.mpi_comm.bcast(self.axis_rotation_angles, root=0)
-        self._sphp_output_grid = self.mpi_comm.bcast(self.sphp_output_grid, root=0)
+        self._axis_rotation_angles = self.mpi_comm.bcast(
+            self.axis_rotation_angles, root=0
+        )
+        self._sphp_output_grid = self.mpi_comm.bcast(
+            self.sphp_output_grid, root=0
+        )
 
     def initialize_interpolant(self):
         """Initialize a modes array to hold the spectral
@@ -451,7 +456,7 @@ class Interpolate3D(ParallelClassTemplate):
 
         Clmrt = modes_array(
             ell_max=self._method_info.ell_max,
-            extra_mode_axes_shape=(self.shape[1], ),
+            extra_mode_axes_shape=(self.shape[1],),
             data_len=self.n_time,
             spin_weight=0,
             time_axis=self.time_axis,
@@ -482,7 +487,7 @@ class Interpolate3D(ParallelClassTemplate):
             message(f"\t\tPhi shape {Phi.shape}\t", f"Phi {Phi}")
             theta_axis_1d = self.sphp_output_grid[t_index][2][..., 0]
             theta_equator_index = np.argmin(abs(theta_axis_1d - np.pi / 2))
-            #phi_rotation_angles.append(Phi[theta_equator_index, 0])
+            # phi_rotation_angles.append(Phi[theta_equator_index, 0])
             phi_rotation_angles.append(Phi[theta_equator_index])
 
         self._axis_rotation_angles = np.array(phi_rotation_angles)
@@ -492,20 +497,22 @@ class Interpolate3D(ParallelClassTemplate):
         to align the canonical coordinate system
         against the SpEC simulation coordinates"""
 
-        fileh = self.run_dir/"ApparentHorizons/Horizons.h5"
+        fileh = self.run_dir / "ApparentHorizons/Horizons.h5"
 
         hdat = h5py.File(fileh)
 
-        hdat_aha = hdat['AhA.dir']
-        hdat_ahb = hdat['AhB.dir']
+        hdat_aha = hdat["AhA.dir"]
+        hdat_ahb = hdat["AhB.dir"]
 
-        hdat_aha_ccentre = hdat_aha['CoordCenterInertial.dat']
-        hdat_ahb_ccentre = hdat_ahb['CoordCenterInertial.dat']
+        hdat_aha_ccentre = hdat_aha["CoordCenterInertial.dat"]
+        hdat_ahb_ccentre = hdat_ahb["CoordCenterInertial.dat"]
 
         hca_t = hdat_aha_ccentre[...][:, 0]
         hcb_t = hdat_ahb_ccentre[...][:, 0]
 
-        assert (hca_t==hcb_t).all(), "Time axis of the two horizons must match"
+        assert (
+            hca_t == hcb_t
+        ).all(), "Time axis of the two horizons must match"
 
         hca_x = hdat_aha_ccentre[...][:, 1]
         hcb_x = hdat_ahb_ccentre[...][:, 1]
@@ -514,15 +521,17 @@ class Interpolate3D(ParallelClassTemplate):
         hca_z = hdat_aha_ccentre[...][:, 3]
         hcb_z = hdat_ahb_ccentre[...][:, 3]
 
-        # Assuming that the X axis points from the 
+        # Assuming that the X axis points from the
         # bigger (AhA) to smaller (AhB) black hole
-        dx = (hcb_x - hca_x)
-        dy = (hcb_y - hca_y)
-        dz = (hcb_z - hca_z)
+        dx = hcb_x - hca_x
+        dy = hcb_y - hca_y
+        dz = hcb_z - hca_z
 
-        assert (abs(dz)<1e-6).all(), "The orbit is not planar! This procedure is not yet implemented for the case of precessing orbits!"
+        assert (
+            abs(dz) < 1e-6
+        ).all(), "The orbit is not planar! This procedure is not yet implemented for the case of precessing orbits!"
 
-        sep_vec = -(dx +1j*dy)
+        sep_vec = -(dx + 1j * dy)
         self._axis_rotation_angles = np.unwrap(np.angle(sep_vec))
         self.message_root(f"Rotation angles are {self._axis_rotation_angles}")
         hdat.close()
@@ -1222,7 +1231,9 @@ class Interpolate3D(ParallelClassTemplate):
             for item in modes_Clmr_at_t_step:
                 tstep2, ell, emm, mode_data = item
 
-                self.message_root(f"Nested t step {t_step}", message_verbosity=4)
+                self.message_root(
+                    f"Nested t step {t_step}", message_verbosity=4
+                )
 
                 self.message_root(
                     f"Setting l {ell} m {emm} mode data", message_verbosity=4
@@ -1303,7 +1314,9 @@ class Interpolate3D(ParallelClassTemplate):
             for item in modes_Clmr_at_t_step:
                 tstep2, ell, emm, mode_data = item
 
-                self.message_root(f"Nested t step {t_step}", message_verbosity=4)
+                self.message_root(
+                    f"Nested t step {t_step}", message_verbosity=4
+                )
 
                 self.message_root(
                     f"Setting l {ell} m {emm} mode data", message_verbosity=4
@@ -1347,7 +1360,7 @@ class Interpolate3D(ParallelClassTemplate):
         )
 
         self.initialize_interpolant()
-        
+
         self._interpolant._modes_data = modes_Clmr_t_data.transpose(2, 1, 0)
         message("Modes data shape ", self._interpolant.modes_data.shape)
 
@@ -1633,14 +1646,14 @@ class Interpolate3D(ParallelClassTemplate):
                 > len(np.array(Th).flatten()) / 2
             ):
 
-                #self.create_Ylm_cache(t_step, overwrite=True)
+                # self.create_Ylm_cache(t_step, overwrite=True)
 
                 evaluated_interpolant.append(
                     self.evaluate_scattered(t_step=t_step)
                 )
 
             else:
-               
+
                 evaluated_interpolant.append(self.evaluate_reorganized(t_step))
                 # evaluated_interpolant.append(self.evaluate_scattered(t_step=t_step))
 
@@ -1753,7 +1766,7 @@ class Interpolate3D(ParallelClassTemplate):
 
                 start = time.time()
 
-                #fval = self.AngContractVec(Clm_interp, ang_jobid)
+                # fval = self.AngContractVec(Clm_interp, ang_jobid)
                 fval = Clm_interp.evaluate(theta, phi)
                 end = time.time()
 
@@ -1852,7 +1865,7 @@ class Interpolate3D(ParallelClassTemplate):
                 # theta, phi again in a vectorized manner.
                 # and does not use Ylm cache
 
-                #fval = AngContract(Clm_interp, Th, Ph)
+                # fval = AngContract(Clm_interp, Th, Ph)
                 fval = Clm_interp.evaluate
                 job_out_list_local.append([jobid, fval])
 
@@ -2068,7 +2081,7 @@ class Interpolate3D(ParallelClassTemplate):
         nt, _, _, _ = self.shape
 
         if self.mpi_rank == 0:
-            
+
             out_dir = f"interpolant_{self.label}"
             if not os.path.isdir(out_dir):
                 os.mkdir(out_dir)

@@ -68,7 +68,9 @@ class ChebyshevSpectral:
     @property
     def collocation_points_physical(self):
 
-        if (np.array(self._collocation_points_physical) == np.array(None)).all():
+        if (
+            np.array(self._collocation_points_physical) == np.array(None)
+        ).all():
             # Naxis = np.arange(self.Nfuncs+1)
             message(
                 "Computing physical collocation points", message_verbosity=2
