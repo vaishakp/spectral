@@ -147,8 +147,6 @@ if mpi_rank == 0:
     message("Interpolating...")
 
 
-
-
 ###################################################
 # Construct interpolant
 
