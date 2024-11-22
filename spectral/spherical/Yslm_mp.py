@@ -6,8 +6,6 @@ import numpy as np
 from waveformtools.transforms import Yslm_vec as Yslm
 from waveformtools.waveformtools import message
 from warnings import warn
-
-from waveformtools.differentiate
 #
 
 
