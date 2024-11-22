@@ -132,7 +132,6 @@ interp3d = Interpolate3D(
 )
 
 
-# Run
 message("Rank", interp3d.mpi_rank)
 
 if mpi_rank == 0:
@@ -146,6 +145,13 @@ if mpi_rank == 0:
 
 if mpi_rank == 0:
     message("Interpolating...")
+
+
+
+
+###################################################
+# Construct interpolant
+
 
 interp3d.construct_interpolant()
 
@@ -162,7 +168,14 @@ if mpi_rank == 0:
 
     message(f"Are all the modes zeros? ... {all_zeros}")
 
+# Evaluate interpolant
 interp3d.evaluate_interpolant()
+
+
+#########################################################
+# Diagnostics
+#############
+
 
 if mpi_rank == 0:
     message("Done evaluating")

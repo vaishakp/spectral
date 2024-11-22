@@ -24,6 +24,9 @@ mpi_comm = MPI.COMM_WORLD
 mpi_nprocs = mpi_comm.Get_size()
 mpi_rank = mpi_comm.Get_rank()
 
+
+
+
 sim = "q1a0_test_ah2"
 run_dir = Path(f"/mnt/pfs/vaishak.p/sims/SpEC/gcc/{sim}/Ev/Lev1_AA/Run")
 

@@ -87,7 +87,7 @@ class Interpolate3D(ParallelClassTemplate):
     2. The data from all time steps are pooled together before angular expansion happens
     3. Each shell is labelled with r and t
     4. Angular decompositions are MPI parallelzed.
-    4. After angular expansion, one has Clmrt
+    4. After angular expansion, one has rClmt
     5. Clm modes on a single line of sight in r from across time steps are pooled together.
     6. Radial decompositions of each angular mode is MPI paralellzed across time. Withinn each time step,
        the Clmr decomposition to Clmq are vectorized i.e. Clmrt -> Clmpt (radial physical to spectral) are MPI Parallelized
