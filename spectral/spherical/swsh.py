@@ -125,7 +125,7 @@ def check_Yslm_theta(theta_grid, threshold=1e-6):
 Yslm_vec_cache = {}
 
 
-def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid, cache=True):
+def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid, cache=False):
     """Spin-weighted spherical harmonics fast evaluations
     on numpy arrays for vectorized evaluations.
 

@@ -1,3 +1,6 @@
+import numpy as np
+
+
 # @njit(parallel=True)
 def compute_fft(udata_x, delta_x):
     """Find the FFT of the samples in time-space,
