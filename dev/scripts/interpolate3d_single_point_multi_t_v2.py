@@ -2,6 +2,7 @@ import h5py, numpy as np
 import config
 import matplotlib
 import matplotlib.pyplot as plt
+import time
 
 config.conf_matplolib()
 import sys
@@ -166,9 +167,14 @@ if mpi_rank == 0:
 
     message(f"Are all the modes zeros? ... {all_zeros}")
 
-# Evaluate interpolant
-interp3d.evaluate_interpolant()
 
+# Evaluate interpolant
+start = time.time()
+interp3d.evaluate_interpolant()
+end = time.time()
+
+
+print(f"Time taken {end-start}")
 
 #########################################################
 # Diagnostics
