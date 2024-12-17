@@ -18,10 +18,9 @@ from spectral.spherical.abstract import SphericalGrid
 # from numba.experimental import jitclass
 
 
-class UniformGrid(SphericalGrid):
+class UniformGridOld:
     """A class to store the theta-phi grid info."""
 
-    """ 
     def __init__(
         self,
         nphi=80,
@@ -47,7 +46,6 @@ class UniformGrid(SphericalGrid):
         self._integration_method = integration_method
 
         self._grid_type = grid_type
-    """
 
     @property
     def grid_type(self):
@@ -256,10 +254,9 @@ class UniformGrid(SphericalGrid):
         theta_grid_gl, phi_grid_gl = infoGL.meshgrid
 
 
-class UniformGrid2(SphericalGrid):
+class UniformGrid(SphericalGrid):
     """A class to store the theta-phi grid info."""
 
-    """ 
     def __init__(
         self,
         nphi=80,
@@ -270,22 +267,17 @@ class UniformGrid2(SphericalGrid):
         integration_method="MP",
         grid_type="Uniform",
     ):
+        super().__init__(nphi=80,
+                        ntheta=41,
+                        nphimax=124,
+                        nthetamax=66,
+                        nghosts=2,
+                        integration_method="MP",
+                        grid_type="Uniform",)
 
-        # Number of gridpoints along phi direction including ghost points.
-        self.nphi = nphi
-        # Number of gridpoints along theta direction including ghost points.
-        self.ntheta = ntheta
-        # Total length of phi array used by ETK.
-        self.nphimax = nphimax
-        # Total length of theta array used by ETK.
-        self.nthetamax = nthetamax
-        # Number of ghost points in theta/phi direction.
-        self.nghosts = nghosts
-        # The default integration method
-        self._integration_method = integration_method
 
         self._grid_type = grid_type
-    """
+        self.create_wrapped_meshgrid()
 
     @property
     def theta_1d(self, theta_index=None):
@@ -384,7 +376,7 @@ class UniformGrid2(SphericalGrid):
         theta_grid_gl, phi_grid_gl = infoGL.meshgrid
 
 
-class GLGrid:
+class GLGridOld:
     """A class to store the coordinate grid on a sphere.
 
     Attributes
@@ -519,16 +511,7 @@ class GLGrid:
 
         self._dphi = dphi  # self._phi_1d[1]
 
-        self._phi_1d_wrapped = np.array(
-            list(self.phi_1d) + [self.phi_1d[-1] + self.dphi]
-        )
-
-        theta_grid_wrapped, phi_grid_wrapped = np.meshgrid(
-            self.theta_1d, self.phi_1d_wrapped
-        )
-        self._meshgrid_wrapped = np.transpose(theta_grid_wrapped), np.transpose(
-            phi_grid_wrapped
-        )
+        self.create_wrapped_meshgrid()
 
     @property
     def grid_type(self):
@@ -664,12 +647,6 @@ class GLGrid:
         return self._phi_1d
 
     @property
-    def phi_1d_wrapped(self):
-        "Returns 1d phi axis including the last element identified with the first"
-
-        return self._phi_1d_wrapped
-
-    @property
     def meshgrid(self):
         """The (:math:`\\theta, \\phi)`: coordinate meshes.
         Excludes the ghost zones.
@@ -687,12 +664,228 @@ class GLGrid:
         return self._meshgrid
 
     @property
-    def meshgrid_wrapped(self):
-        "Return the meshgrid constructed from phi_1d_wrapped"
-
-        return self._meshgrid_wrapped
-
-    @property
     def integration_method(self):
         """The default integration method"""
         return self._integration_method
+
+
+
+class GLGrid(SphericalGrid):
+    """A class to store the coordinate grid on a sphere.
+
+    Attributes
+    ----------
+    ntheta : int
+             The number of angular points in the :math:`\\theta`
+             direction, including ghost zones.
+    nphi : int
+           The number of angular points in the :math:`\\phi`
+           direction, including ghost zones.
+    nghosts : int
+              The number of ghost zones at the end of
+              each direction.
+    meshgrid : tuple of 2d array
+               The 2d array containing the meshgrid of
+               (:math:`\\theta, \\phi`) angular points.
+    theta_1d : 1d array
+               The 1d array of angular points
+               along the :math:`\\theta` axis.
+    phi_1d : 1d array
+             The 1d array of angular points
+             along the :math:`\\phi` axis.
+    dtheta : float
+             The angular step size in the :math:`\\theta`
+             direction.
+    dphi : float
+           The angular step size inthe :math:`\\phi`
+           direction.
+    npix_act : int
+               The total number of gridpoints on the sphere,
+               excluding the ghost points.
+    meshgrid : tuple of 2darray
+               Get the 2d angular grid.
+
+    Methods
+    -------
+    theta_1d :
+        Get the :math:`\\theta` axis.
+    phi_1d :
+        Get the :math:`\\phi` axis.
+
+    Notes
+    -----
+    The total number of points on the sphere
+    is assumed to be :math:`2 (L+1)^2`
+
+    :math:`N_\\theta = L+1`
+
+    :math:`N_\\phi = 2(L+1)`
+
+    This integrates out spherical harmonics of degree L exactly,
+    given a regular function on the sphere.
+
+    In other words, given :math:`L+1` points in the :math:`\\theta`
+    direction, one can resolve spherical harmonics upto degree
+    :math:`L`.
+    """
+
+    def __init__(
+        self,
+        nphi=None,
+        ntheta=None,
+        nphi_act=None,
+        ntheta_act=None,
+        L=15,
+        integration_method="GL",
+
+    ):
+
+        super().__init__(nphi=nphi,
+                         ntheta=ntheta,
+                         nghosts=0,
+                         integration_method=integration_method,
+                         grid_type='GL')
+        
+        # Total length of phi array used by ETK.
+        # self._nphimax		= nphimax
+        # Total length of theta array used by ETK.
+        # self._nthetamax	= nthetamax
+        # Number of ghost points in theta/phi direction.
+        self._L = L
+        self._theta_1d = None
+        self._phi_1d = None
+        self._meshgrid = None
+        self._integration_method = integration_method
+        self._grid_type = 'GL'
+
+        if self._ntheta is None:
+            if self._L is None:
+                raise ValueError("Please specify L or angular points!")
+
+            else:
+                self._ntheta_act = L + 1
+                self._nphi_act = 2 * self._ntheta_act
+
+                self._ntheta = self._ntheta_act + 2 * self._nghosts
+                self._nphi = self._nphi_act + 2 * self._nghosts
+
+        elif self._L is None:
+            if self.nthetha is None:
+                raise ValueError("Please specify L or angular points!")
+            else:
+                self.L = self.ntheta_act - 1
+                # assert(nphi%2==0)
+                self.nphi_act = 2 * self.L + 1
+
+        from scipy.special import roots_legendre
+
+        cpoints, self._weights, self._sum_of_weights = roots_legendre(
+            L + 1, mu=True
+        )
+
+        # xpoints = (np.pi-np.arccos(cpoints))
+        xpoints = np.arccos(cpoints[::-1])
+        self._theta_1d = xpoints
+
+        dphi = 2 * np.pi / self._nphi_act
+
+        self._phi_1d = np.linspace(0, 2 * np.pi - dphi, self._nphi_act)
+
+        theta_grid, phi_grid = np.meshgrid(self._theta_1d, self._phi_1d)
+        self._meshgrid = np.transpose(theta_grid), np.transpose(phi_grid)
+
+        dtheta_axis = np.diff(self._theta_1d)
+
+        dtheta_axis = np.append(dtheta_axis, np.pi - self._theta_1d[-1])
+        dtheta_axis = np.insert(dtheta_axis, 0, self._theta_1d[0])
+
+        self._dtheta_1d = dtheta_axis
+
+        self._dphi = dphi  # self._phi_1d[1]
+
+        self.create_wrapped_meshgrid()
+
+
+    @property
+    def dtheta(self):
+        """Return the non-uniform angular stepping in
+        :math:`\theta` direction"""
+        return self._dtheta
+
+
+    @property
+    def L(self):
+        """Return the total number of pixels, including
+        the ghost zones present at one iteration."""
+        return self._L
+
+
+    @property
+    def weights(self):
+        """Return the integration weights along theta"""
+        return self._weights
+
+    @property
+    def weights_grid(self):
+        """Return the integration weights on the coordinate mesh grid"""
+        return np.outer(self.weights, np.ones(self.nphi_act))
+
+    @property
+    def shape(self):
+        """Return the shape of the grif"""
+        return self.weights_grid.shape
+
+    @property
+    def theta_1d(self):
+        """Returns the coordinate value theta given the coordinate index.
+        The coordinate index ranges from (0, ntheta). The actual indices
+        without the ghost and extra zones is (nghosts, ntheta-nghosts).
+
+        Parameters
+        -----------
+        theta_index : int/ 1d array
+                      The theta coordinate index or axis.
+
+        Returns
+        -------
+        theta_1d : float
+                   The coordinate(s) :math:`\\theta` on the sphere.
+        """
+
+        return self._theta_1d
+
+    @property
+    def phi_1d(self):
+        """Returns the coordinate value theta given the coordinate index.
+        The coordinate index lies in (0, nphi). The actual indices without
+        the ghost and extra zones is (nghosts, nphi-nghosts).
+
+        Parameters
+        -----------
+        phi_1d : int / 1d array
+                 The phi coordinate index or axis.
+
+        Returns
+        -------
+        phi_1d : float or 1d array
+                 The coordinate(s) :math:`\\phi` on the sphere.
+        """
+
+        return self._phi_1d
+
+    @property
+    def meshgrid(self):
+        """The (:math:`\\theta, \\phi)`: coordinate meshes.
+        Excludes the ghost zones.
+
+
+        Returns
+        -------
+        theta :	2d array
+                The :math:`\\theta` coordinate matrix for vectorization.
+
+        phi : 2d array
+              The :math:`\\phi` coordinate matrix for vectorization.
+        """
+
+        return self._meshgrid

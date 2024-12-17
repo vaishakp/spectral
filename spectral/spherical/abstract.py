@@ -14,7 +14,7 @@ class SphericalGrid(ABC):
         nthetamax=66,
         nghosts=2,
         integration_method="MP",
-        grid_type="Uniform",
+        grid_type="Abstract",
     ):
 
         # Number of gridpoints along phi direction including ghost points.
@@ -48,6 +48,14 @@ class SphericalGrid(ABC):
     def nghosts(self):
         return self._nghosts
 
+    @property
+    def ntheta_max(self):
+        return self._ntheta_max
+    
+    @property
+    def nphi_max(self):
+        return self._nphi_max
+    
     @property
     def npix(self):
         # Return the total number of pixels, including the ghost zones present at one iteration.
@@ -172,3 +180,29 @@ class SphericalGrid(ABC):
     def integration_method(self):
         """The default integration method"""
         return self._integration_method
+    
+    @property
+    def phi_1d_wrapped(self):
+        "Returns 1d phi axis including the last element identified with the first"
+
+        return self._phi_1d_wrapped
+    
+
+    @property
+    def meshgrid_wrapped(self):
+        "Return the meshgrid constructed from phi_1d_wrapped"
+
+        return self._meshgrid_wrapped
+
+
+    def create_wrapped_meshgrid(self):
+        self._phi_1d_wrapped = np.array(
+            list(self.phi_1d) + [self.phi_1d[-1] + self.dphi]
+        )
+
+        theta_grid_wrapped, phi_grid_wrapped = np.meshgrid(
+            self.theta_1d, self.phi_1d_wrapped
+        )
+        self._meshgrid_wrapped = np.transpose(theta_grid_wrapped), np.transpose(
+            phi_grid_wrapped
+        )
