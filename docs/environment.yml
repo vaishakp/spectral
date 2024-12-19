@@ -1,0 +1,15 @@
+name: myenv
+
+dependencies:
+    - python=3
+    - matplotlib
+    - termcolor
+    - numba
+    - datetime
+    - scipy
+    - numpy
+    - sympy
+    - numpydoc
+channels:
+    - defaults
+    - conda-forge
