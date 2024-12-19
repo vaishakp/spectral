@@ -254,4 +254,4 @@ class Yslm_mp:
             mode_vals = np.array(mode_vals)[args_order]
 
         self._sYlm_modes._modes_data = np.array(mode_vals)
-        # self.__sYlm_modes._extra_mode_axis_shape = theta
+        # self.__sYlm_modes._extra_mode_axes_shape = theta

@@ -706,7 +706,7 @@ def create_spherical_Yslm_modes_array(theta, phi, spin_weight, ell_max):
         sYlm_modes = SingleMode(
             ell_max=ell_max,
             spin_weight=spin_weight,
-            extra_mode_axis_shape=theta.shape,
+            extra_mode_axes_shape=theta.shape,
         )
 
         message(
