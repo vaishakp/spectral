@@ -982,12 +982,15 @@ def get_spack_mode_index(ell, emm, ell_max):
     return int(occ_modes) - 1
 
 
-def SHContract(modes, grid_info, ell_max, method_info):
+def SHContract(modes, grid_info, ell_max, method_info, vectorize=False):
     """Reconstruct a function on a grid given its SH modes
     using the specified method"""
 
     if method_info.swsh_routine == "waveformtools":
-        result = SHContractWftools(modes, grid_info, ell_max)
+        if vectorize:
+            result = SHContractWftoolsVec(modes, grid_info, ell_max)
+        else:
+            result = SHContractWftools(modes, grid_info, ell_max)
 
     elif method_info.swsh_routine == "spherepack":
         result = SHContractSpack(modes, grid_info)
@@ -1019,6 +1022,7 @@ def SHContractSpack(modes, grid_info, ell_max=None):
     result = xcls.spectogrd(modes_spack)
 
     return result
+
 
 def SHContractWftools(modes, grid_info=None, ell_max=None):
     """Reconstruct a function on a grid given its SH modes
@@ -1053,10 +1057,11 @@ def SHContractWftools(modes, grid_info=None, ell_max=None):
 
     recon_func = np.zeros(grid_info.shape, dtype=np.complex128)
 
-    for ell in range(ell_max+1):
-        recon_func+=SHContractEllWftools(modes, ell, grid_info)
+    for ell in range(ell_max + 1):
+        recon_func += SHContractEllWftools(modes, ell, grid_info)
 
     return recon_func
+
 
 def SHContractWftoolsVec(modes, grid_info=None, ell_max=None):
     """Reconstruct a function on a grid given its SH modes
@@ -1098,7 +1103,7 @@ def SHContractWftoolsVec(modes, grid_info=None, ell_max=None):
     # Compute unsummed vetor product
     Ylm_vec = sYlm.sYlm_modes._modes_data.transpose((1, 2, 0))
     _, _, modes_data_len = Ylm_vec.shape
-    
+
     recon_func = np.einsum(
         "tpm,m...->...tp", Ylm_vec, modes._modes_data[:modes_data_len]
     )

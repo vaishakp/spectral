@@ -267,14 +267,15 @@ class UniformGrid(SphericalGrid):
         integration_method="MP",
         grid_type="Uniform",
     ):
-        super().__init__(nphi=80,
-                        ntheta=41,
-                        nphimax=124,
-                        nthetamax=66,
-                        nghosts=2,
-                        integration_method="MP",
-                        grid_type="Uniform",)
-
+        super().__init__(
+            nphi=80,
+            ntheta=41,
+            nphimax=124,
+            nthetamax=66,
+            nghosts=2,
+            integration_method="MP",
+            grid_type="Uniform",
+        )
 
         self._grid_type = grid_type
         self.create_wrapped_meshgrid()
@@ -669,7 +670,6 @@ class GLGridOld:
         return self._integration_method
 
 
-
 class GLGrid(SphericalGrid):
     """A class to store the coordinate grid on a sphere.
 
@@ -737,15 +737,16 @@ class GLGrid(SphericalGrid):
         ntheta_act=None,
         L=15,
         integration_method="GL",
-
     ):
 
-        super().__init__(nphi=nphi,
-                         ntheta=ntheta,
-                         nghosts=0,
-                         integration_method=integration_method,
-                         grid_type='GL')
-        
+        super().__init__(
+            nphi=nphi,
+            ntheta=ntheta,
+            nghosts=0,
+            integration_method=integration_method,
+            grid_type="GL",
+        )
+
         # Total length of phi array used by ETK.
         # self._nphimax		= nphimax
         # Total length of theta array used by ETK.
@@ -756,7 +757,7 @@ class GLGrid(SphericalGrid):
         self._phi_1d = None
         self._meshgrid = None
         self._integration_method = integration_method
-        self._grid_type = 'GL'
+        self._grid_type = "GL"
 
         if self._ntheta is None:
             if self._L is None:
@@ -805,20 +806,17 @@ class GLGrid(SphericalGrid):
 
         self.create_wrapped_meshgrid()
 
-
     @property
     def dtheta(self):
         """Return the non-uniform angular stepping in
         :math:`\theta` direction"""
         return self._dtheta
 
-
     @property
     def L(self):
         """Return the total number of pixels, including
         the ghost zones present at one iteration."""
         return self._L
-
 
     @property
     def weights(self):

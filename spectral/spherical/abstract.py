@@ -51,11 +51,11 @@ class SphericalGrid(ABC):
     @property
     def ntheta_max(self):
         return self._ntheta_max
-    
+
     @property
     def nphi_max(self):
         return self._nphi_max
-    
+
     @property
     def npix(self):
         # Return the total number of pixels, including the ghost zones present at one iteration.
@@ -180,20 +180,18 @@ class SphericalGrid(ABC):
     def integration_method(self):
         """The default integration method"""
         return self._integration_method
-    
+
     @property
     def phi_1d_wrapped(self):
         "Returns 1d phi axis including the last element identified with the first"
 
         return self._phi_1d_wrapped
-    
 
     @property
     def meshgrid_wrapped(self):
         "Return the meshgrid constructed from phi_1d_wrapped"
 
         return self._meshgrid_wrapped
-
 
     def create_wrapped_meshgrid(self):
         self._phi_1d_wrapped = np.array(
