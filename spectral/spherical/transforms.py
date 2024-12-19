@@ -1020,7 +1020,6 @@ def SHContractSpack(modes, grid_info, ell_max=None):
 
     return result
 
-
 def SHContractWftools(modes, grid_info=None, ell_max=None):
     """Reconstruct a function on a grid given its SH modes
     using waveformtools.
@@ -1038,11 +1037,6 @@ def SHContractWftools(modes, grid_info=None, ell_max=None):
     recon_func : ndarray
                  The reconstructed grid function.
     """
-
-    # if isinstance(modes, SingleMode):
-    # message("SingleMode obj input. Converting to modes dictionary", message_verbosity=3)
-
-    # modes = modes.get_modes_dict()
     if grid_info is None:
         grid_info = modes.Grid
 
@@ -1050,24 +1044,64 @@ def SHContractWftools(modes, grid_info=None, ell_max=None):
         ell_max = modes.ell_max
 
     # message(f"Modes in SHContract {modes}", message_verbosity=4)
-
-    # print(modes)
     from waveformtools.waveforms import construct_mode_list
 
     # Construct modes list
     modes_list = construct_mode_list(ell_max=ell_max, spin_weight=0)
-
     message(f"Modes list in SHContract {modes_list}", message_verbosity=4)
-
     theta_grid, phi_grid = grid_info.meshgrid
 
-    recon_func = np.zeros(theta_grid.shape, dtype=np.complex128)
+    recon_func = np.zeros(grid_info.shape, dtype=np.complex128)
 
-    for ell, emm_list in modes_list:
-        for emm in emm_list:
-            # Clm = modes[f"l{ell}"][f"m{emm}"]
+    for ell in range(ell_max+1):
+        recon_func+=SHContractEllWftools(modes, ell, grid_info)
 
-            recon_func += SHContractEllWftools(modes, ell, grid_info)
+    return recon_func
+
+def SHContractWftoolsVec(modes, grid_info=None, ell_max=None):
+    """Reconstruct a function on a grid given its SH modes
+    using waveformtools.
+
+    Parameters
+    ----------
+    modes : list
+            A list of modes, in the convention [[l, [m list]], ]
+    info : surfacegridinfo
+           An instance of the surfacegridinfo.
+    ell_max : int
+              The max l mode to include.
+    Returns
+    -------
+    recon_func : ndarray
+                 The reconstructed grid function.
+    """
+    if grid_info is None:
+        grid_info = modes.Grid
+
+    if ell_max is None:
+        ell_max = modes.ell_max
+
+    # message(f"Modes in SHContract {modes}", message_verbosity=4)
+    from waveformtools.waveforms import construct_mode_list
+
+    # Construct modes list
+    modes_list = construct_mode_list(ell_max=ell_max, spin_weight=0)
+    message(f"Modes list in SHContract {modes_list}", message_verbosity=4)
+    theta_grid, phi_grid = grid_info.meshgrid
+
+    # Compute and cache SHs
+    sYlm = Yslm_mp(
+        ell_max=ell_max, spin_weight=0, theta=theta_grid, phi=phi_grid
+    )
+    sYlm.run()
+
+    # Compute unsummed vetor product
+    Ylm_vec = sYlm.sYlm_modes._modes_data.transpose((1, 2, 0))
+    _, _, modes_data_len = Ylm_vec.shape
+    
+    recon_func = np.einsum(
+        "tpm,m...->...tp", Ylm_vec, modes._modes_data[:modes_data_len]
+    )
 
     return recon_func
 
