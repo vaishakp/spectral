@@ -86,11 +86,12 @@ def compute_ifft(utilde, delta_f):
     # delta_x		 = xdata[1] - xdata[0]
 
     # Naxis			 = np.arange(Nlen)
-    delta_t = 1.0 / (delta_f * Nlen)
+    delta_t = round(1.0 / (delta_f * Nlen), 4)
+    # delta_t = 1.0 / (delta_f * Nlen)
     # Dt				= Nlen * delta_f/2
 
-    # time_axis = np.linspace(0, delta_t * Nlen, Nlen)
-    time_axis = np.arange(0, delta_t * Nlen, 1 / Nlen)
+    time_axis = np.linspace(0, delta_t * Nlen, Nlen)
+    # time_axis = np.arange(0, delta_t * Nlen, 1 / Nlen)
 
     return time_axis, udata_time
 
