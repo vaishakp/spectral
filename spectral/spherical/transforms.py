@@ -1090,8 +1090,8 @@ def SHContractWftoolsVec(modes, grid_info=None, ell_max=None):
     from waveformtools.waveforms import construct_mode_list
 
     # Construct modes list
-    modes_list = construct_mode_list(ell_max=ell_max, spin_weight=0)
-    message(f"Modes list in SHContract {modes_list}", message_verbosity=4)
+    #modes_list = construct_mode_list(ell_max=ell_max, spin_weight=0)
+    #message(f"Modes list in SHContract {modes_list}", message_verbosity=4)
     theta_grid, phi_grid = grid_info.meshgrid
 
     # Compute and cache SHs
