@@ -1866,7 +1866,7 @@ class Interpolate3D(ParallelClassTemplate):
                 # and does not use Ylm cache
 
                 # fval = AngContract(Clm_interp, Th, Ph)
-                fval = Clm_interp.evaluate
+                fval = Clm_interp.evaluate(theta=Th, phi=Ph)
                 job_out_list_local.append([jobid, fval])
 
         self.message_root(
