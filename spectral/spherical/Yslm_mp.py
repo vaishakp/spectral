@@ -219,7 +219,10 @@ class Yslm_mp:
 
         if self.cache:
             if self.spin_weight in self._Yslm_mp_cache.keys():
-                if self.ell_max in self._Yslm_mp_cache[self.spin_weight].keys():
+                if (
+                    self.ell_max
+                    in self._Yslm_mp_cache[self.spin_weight].keys()
+                ):
                     # print("Retrieving from cache")
                     availability = True
 

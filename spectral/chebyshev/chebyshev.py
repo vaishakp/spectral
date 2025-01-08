@@ -53,9 +53,13 @@ class ChebyshevSpectral:
     @property
     def collocation_points_logical(self):
 
-        if (np.array(self._collocation_points_logical) == np.array(None)).all():
+        if (
+            np.array(self._collocation_points_logical) == np.array(None)
+        ).all():
 
-            message("Computing logical collocation points", message_verbosity=2)
+            message(
+                "Computing logical collocation points", message_verbosity=2
+            )
             Naxis = np.arange(self.Nfuncs)
 
             x_logical = -np.cos(Naxis * np.pi / (self.Nfuncs - 1))

@@ -99,7 +99,9 @@ class ChebyshevBasis:
 
         if order not in list(self.basis_storage.keys()):
 
-            message(f"Constructing basis of order {order}", message_verbosity=3)
+            message(
+                f"Constructing basis of order {order}", message_verbosity=3
+            )
 
             if order == 0:
                 self._basis_storage.update({0: np.ones(len(x_axis))})
@@ -110,7 +112,9 @@ class ChebyshevBasis:
             else:
                 self._basis_storage.update(
                     {
-                        order: 2 * x_axis * self.ChebBasisMem(x_axis, order - 1)
+                        order: 2
+                        * x_axis
+                        * self.ChebBasisMem(x_axis, order - 1)
                         - self.ChebBasisMem(x_axis, order - 2)
                     }
                 )

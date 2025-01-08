@@ -86,7 +86,9 @@ def Yslm(spin_weight, ell, emm, theta, phi):
                 )
                 * np.power((-1), (ell - aar - abs_spin_weight))
                 * np.exp(1j * emm * phi)
-                / np.power(np.tan(theta / 2), (2 * aar + abs_spin_weight - emm))
+                / np.power(
+                    np.tan(theta / 2), (2 * aar + abs_spin_weight - emm)
+                )
             )
 
     Sum = complex(Sum)
@@ -199,7 +201,9 @@ def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid, cache=False):
                 continue
             else:
                 term1 = comb(ell - abs_spin_weight, aar)
-                term2 = comb(ell + abs_spin_weight, aar + abs_spin_weight - emm)
+                term2 = comb(
+                    ell + abs_spin_weight, aar + abs_spin_weight - emm
+                )
                 term3 = np.power(float(-1), (ell - aar - abs_spin_weight))
                 term4 = np.exp(1j * emm * phi_grid)
                 term5 = np.longdouble(

@@ -495,7 +495,9 @@ class Interpolate3D:
             r_ind_set = [item[0] for item in modes_r_set]
             r_modes_order = np.argsort(r_ind_set)
 
-            modes_r_ordered = [modes_r_set[index][1] for index in r_modes_order]
+            modes_r_ordered = [
+                modes_r_set[index][1] for index in r_modes_order
+            ]
         else:
             modes_r_ordered = None
 
@@ -721,7 +723,8 @@ class Interpolate3D:
 
         # Set mode data
         modes_Clmr = SingleMode(
-            ell_max=self._method_info.ell_max, extra_mode_axis_len=self.shape[1]
+            ell_max=self._method_info.ell_max,
+            extra_mode_axis_len=self.shape[1],
         )
 
         for item in modes_Clmr_list_flattened:
@@ -787,7 +790,8 @@ class Interpolate3D:
             )
 
             self.print_root(
-                f"Setting mode data at time step {t_step} ", message_verbosity=4
+                f"Setting mode data at time step {t_step} ",
+                message_verbosity=4,
             )
             # Set mode data
             # Clmr_at_t_step = SingleMode(ell_max=self._method_info.ell_max,
@@ -918,7 +922,9 @@ class Interpolate3D:
         for ell_ind in range(ell_max + 1):
 
             this_ell_data = [
-                item for item in ell_ordered_this_seg_data if item[1] == ell_ind
+                item
+                for item in ell_ordered_this_seg_data
+                if item[1] == ell_ind
             ]
 
             # message("This theta data len", len(this_theta_data), message_verbosity=3)
@@ -1031,7 +1037,8 @@ class Interpolate3D:
             )
 
             self.print_root(
-                f"Setting mode data at time step {t_step} ", message_verbosity=4
+                f"Setting mode data at time step {t_step} ",
+                message_verbosity=4,
             )
             # Set mode data
             # Clmr_at_t_step = SingleMode(ell_max=self._method_info.ell_max,
@@ -1206,7 +1213,8 @@ class Interpolate3D:
             "Expanding radial shells in angular modes...", message_verbosity=2
         )
         self.print_root(
-            "---------------------------------------------", message_verbosity=2
+            "---------------------------------------------",
+            message_verbosity=2,
         )
 
         self.print_root(
@@ -1317,7 +1325,9 @@ class Interpolate3D:
                     radial_decom_job_list.append([t_step, ell, emm])
 
         self.print_root(
-            "radial decomp job list", radial_decom_job_list, message_verbosity=4
+            "radial decomp job list",
+            radial_decom_job_list,
+            message_verbosity=4,
         )
         # Construct PClm
 
@@ -1383,7 +1393,9 @@ class Interpolate3D:
 
         if self.mpi_rank == 0:
             self.initialize_interpolant()
-            self.flatten_assign_Clmr_to_modes_array(modes_Clmr_list_group_all_t)
+            self.flatten_assign_Clmr_to_modes_array(
+                modes_Clmr_list_group_all_t
+            )
 
             self.print_root(
                 "Checks on the constructed inteproland from rank 0",
@@ -1638,7 +1650,8 @@ class Interpolate3D:
         """
 
         self.print_root(
-            "Evaluating by scattering and vectorization...", message_verbosity=2
+            "Evaluating by scattering and vectorization...",
+            message_verbosity=2,
         )
 
         # coords_list
@@ -1683,7 +1696,10 @@ class Interpolate3D:
                 # on a sphere at particular radius.
                 # at a single instant of time.
                 Clm_interp = RContract(
-                    self.interpolant, radius, cs=self.radial_grid, t_step=t_step
+                    self.interpolant,
+                    radius,
+                    cs=self.radial_grid,
+                    t_step=t_step,
                 )
 
                 end = time.time()
@@ -1722,7 +1738,8 @@ class Interpolate3D:
                 #    print(f" Progress : {progress} %")
 
         self.print_root(
-            "Synchronizing before gathering func values.. ", message_verbosity=3
+            "Synchronizing before gathering func values.. ",
+            message_verbosity=3,
         )
 
         self.mpi_comm.Barrier()
@@ -1821,7 +1838,8 @@ class Interpolate3D:
                 job_out_list_local.append([jobid, fval])
 
         self.print_root(
-            "Synchronizing before gathering func values.. ", message_verbosity=3
+            "Synchronizing before gathering func values.. ",
+            message_verbosity=3,
         )
 
         self.mpi_comm.Barrier()
@@ -1875,7 +1893,9 @@ class Interpolate3D:
 
             # self.assign_interpolated_data(func_vals_list_ordered)
 
-            message(f"Evaluation Done for t step {t_step}", message_verbosity=2)
+            message(
+                f"Evaluation Done for t step {t_step}", message_verbosity=2
+            )
 
             return func_vals_list_ordered
 
@@ -2149,7 +2169,9 @@ class Interpolate3D:
         )
         # print("One ele", job_vals_list_ordered[0])
         message(
-            "One ele shape", job_vals_list_ordered[0].shape, message_verbosity=4
+            "One ele shape",
+            job_vals_list_ordered[0].shape,
+            message_verbosity=4,
         )
 
         return job_vals_list_ordered

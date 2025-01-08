@@ -720,7 +720,9 @@ class Interpolate3D(ParallelClassTemplate):
             r_ind_set = [item[0] for item in modes_r_set]
             r_modes_order = np.argsort(r_ind_set)
 
-            modes_r_ordered = [modes_r_set[index][1] for index in r_modes_order]
+            modes_r_ordered = [
+                modes_r_set[index][1] for index in r_modes_order
+            ]
         else:
             modes_r_ordered = None
 
@@ -797,7 +799,9 @@ class Interpolate3D(ParallelClassTemplate):
         for ell_ind in range(ell_max + 1):
 
             this_ell_data = [
-                item for item in ell_ordered_this_seg_data if item[1] == ell_ind
+                item
+                for item in ell_ordered_this_seg_data
+                if item[1] == ell_ind
             ]
 
             emm_indices = [item[2] for item in this_ell_data]
@@ -847,7 +851,9 @@ class Interpolate3D(ParallelClassTemplate):
         )
 
         message(
-            "One ele shape", job_vals_list_ordered[0].shape, message_verbosity=4
+            "One ele shape",
+            job_vals_list_ordered[0].shape,
+            message_verbosity=4,
         )
 
         return job_vals_list_ordered
@@ -1126,7 +1132,8 @@ class Interpolate3D(ParallelClassTemplate):
 
         # Set mode data
         modes_Clmr = SingleMode(
-            ell_max=self._method_info.ell_max, extra_mode_axis_len=self.shape[1]
+            ell_max=self._method_info.ell_max,
+            extra_mode_axis_len=self.shape[1],
         )
 
         for item in modes_Clmr_list_flattened:
@@ -1162,7 +1169,8 @@ class Interpolate3D(ParallelClassTemplate):
             )
 
             self.message_root(
-                f"Setting mode data at time step {t_step} ", message_verbosity=4
+                f"Setting mode data at time step {t_step} ",
+                message_verbosity=4,
             )
             # Set mode data
 
@@ -1237,7 +1245,8 @@ class Interpolate3D(ParallelClassTemplate):
             )
 
             self.message_root(
-                f"Setting mode data at time step {t_step} ", message_verbosity=4
+                f"Setting mode data at time step {t_step} ",
+                message_verbosity=4,
             )
 
             # Set mode data
@@ -1364,7 +1373,8 @@ class Interpolate3D(ParallelClassTemplate):
             "Expanding radial shells in angular modes...", message_verbosity=2
         )
         self.message_root(
-            "---------------------------------------------", message_verbosity=2
+            "---------------------------------------------",
+            message_verbosity=2,
         )
 
         self.message_root(
@@ -1666,7 +1676,8 @@ class Interpolate3D(ParallelClassTemplate):
         """
 
         self.message_root(
-            "Evaluating by scattering and vectorization...", message_verbosity=2
+            "Evaluating by scattering and vectorization...",
+            message_verbosity=2,
         )
 
         # coords_list
@@ -1711,7 +1722,10 @@ class Interpolate3D(ParallelClassTemplate):
                 # on a sphere at particular radius.
                 # at a single instant of time.
                 Clm_interp = RContract(
-                    self.interpolant, radius, cs=self.radial_grid, t_step=t_step
+                    self.interpolant,
+                    radius,
+                    cs=self.radial_grid,
+                    t_step=t_step,
                 )
 
                 end = time.time()
@@ -1746,7 +1760,8 @@ class Interpolate3D(ParallelClassTemplate):
                 #    print(f" Progress : {progress} %")
 
         self.message_root(
-            "Synchronizing before gathering func values.. ", message_verbosity=3
+            "Synchronizing before gathering func values.. ",
+            message_verbosity=3,
         )
 
         self.mpi_comm.Barrier()
@@ -1835,7 +1850,8 @@ class Interpolate3D(ParallelClassTemplate):
                 job_out_list_local.append([jobid, fval])
 
         self.message_root(
-            "Synchronizing before gathering func values.. ", message_verbosity=3
+            "Synchronizing before gathering func values.. ",
+            message_verbosity=3,
         )
 
         self.mpi_comm.Barrier()
@@ -1860,7 +1876,9 @@ class Interpolate3D(ParallelClassTemplate):
                 func_vals_list, self.ang_args_order[t_step]
             )
 
-            message(f"Evaluation Done for t step {t_step}", message_verbosity=2)
+            message(
+                f"Evaluation Done for t step {t_step}", message_verbosity=2
+            )
 
             return func_vals_list_ordered
 

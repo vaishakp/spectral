@@ -31,7 +31,9 @@ def CheckRegReq(data):
     check_reg = [0, 0]
 
     toln = int(nlen / 10)
-    if np.argmax(np.absolute(first_half)) <= toln:  # Added tolerence Apr 8 2023
+    if (
+        np.argmax(np.absolute(first_half)) <= toln
+    ):  # Added tolerence Apr 8 2023
         check_reg[0] = 1
 
     if np.argmax(np.absolute(second_half)) >= nrlen - toln:  # Here as well
@@ -778,7 +780,8 @@ def ComputeErrorInfo(
     # if all_res[0] > 1e-8 and conv > 10:
     if np.amax(abs(all_res[0])) > 1e-10 and conv > 10:
         message(
-            f"{conv}% Residue warning for {result.label}! ", message_verbosity=0
+            f"{conv}% Residue warning for {result.label}! ",
+            message_verbosity=0,
         )
         message(f"Error report for {result.label}: \n\t {result.error_info}")
 
@@ -1090,8 +1093,8 @@ def SHContractWftoolsVec(modes, grid_info=None, ell_max=None):
     from waveformtools.waveforms import construct_mode_list
 
     # Construct modes list
-    #modes_list = construct_mode_list(ell_max=ell_max, spin_weight=0)
-    #message(f"Modes list in SHContract {modes_list}", message_verbosity=4)
+    # modes_list = construct_mode_list(ell_max=ell_max, spin_weight=0)
+    # message(f"Modes list in SHContract {modes_list}", message_verbosity=4)
     theta_grid, phi_grid = grid_info.meshgrid
 
     # Compute and cache SHs

@@ -184,7 +184,10 @@ class Yslm_prec_grid_mp:
 
         if self.spin_weight in Yslm_prec_grid_mp_cache.keys():
 
-            if self.ell_max in Yslm_prec_grid_mp_cache[self.spin_weight].keys():
+            if (
+                self.ell_max
+                in Yslm_prec_grid_mp_cache[self.spin_weight].keys()
+            ):
                 available = True
 
         return available

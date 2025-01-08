@@ -105,7 +105,9 @@ class Yslm_full_vec:
                 continue
             else:
                 term1 = comb(ell - abs_spin_weight, aar)
-                term2 = comb(ell + abs_spin_weight, aar + abs_spin_weight - emm)
+                term2 = comb(
+                    ell + abs_spin_weight, aar + abs_spin_weight - emm
+                )
                 term3 = np.power(float(-1), (ell - aar - abs_spin_weight))
                 term4 = np.exp(1j * emm * phi_grid)
                 term5 = np.longdouble(

@@ -64,7 +64,9 @@ class SphericalGrid(ABC):
     @property
     def npix_act(self):
         # Return the actual number of pixels, excluding the ghost zones present at one iteration.
-        return (self.ntheta - 2 * self.nghosts) * (self.nphi - 2 * self.nghosts)
+        return (self.ntheta - 2 * self.nghosts) * (
+            self.nphi - 2 * self.nghosts
+        )
 
     @property
     def npix_max(self):
@@ -201,6 +203,6 @@ class SphericalGrid(ABC):
         theta_grid_wrapped, phi_grid_wrapped = np.meshgrid(
             self.theta_1d, self.phi_1d_wrapped
         )
-        self._meshgrid_wrapped = np.transpose(theta_grid_wrapped), np.transpose(
-            phi_grid_wrapped
-        )
+        self._meshgrid_wrapped = np.transpose(
+            theta_grid_wrapped
+        ), np.transpose(phi_grid_wrapped)

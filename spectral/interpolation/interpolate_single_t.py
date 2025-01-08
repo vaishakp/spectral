@@ -259,7 +259,9 @@ class Interpolate3D(ParallelClassTemplate):
             r_ind_set = [item[0] for item in modes_r_set]
             r_modes_order = np.argsort(r_ind_set)
 
-            modes_r_ordered = [modes_r_set[index][1] for index in r_modes_order]
+            modes_r_ordered = [
+                modes_r_set[index][1] for index in r_modes_order
+            ]
         else:
             modes_r_ordered = None
 
@@ -346,7 +348,9 @@ class Interpolate3D(ParallelClassTemplate):
             # if self.mpi_rank<nang_decoms:
             if r_index % self.mpi_nprocs == self.mpi_rank:
                 # One angular decomposition per processor
-                local_one_set_modes = self.angular_expansion_at_r_index(r_index)
+                local_one_set_modes = self.angular_expansion_at_r_index(
+                    r_index
+                )
                 local_modes_r_set.append([r_index, local_one_set_modes])
 
         # Wait for ang decomp to finish
@@ -456,7 +460,9 @@ class Interpolate3D(ParallelClassTemplate):
         self.mpi_comm.Barrier()
 
         if self.mpi_rank == 0:
-            message("Broadcasting constructed interpolant", message_verbosity=2)
+            message(
+                "Broadcasting constructed interpolant", message_verbosity=2
+            )
 
         self._interpolant = self.mpi_comm.bcast(self.interpolant, root=0)
 
