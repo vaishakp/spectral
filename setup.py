@@ -28,7 +28,7 @@ def get_requirements():
 
 setuptools.setup(
     name="spectral",
- 	version="2024.12.20",
+    version="2024.12.20",
     author="Vaishak Prasad",
     author_email="vaishakprasad@gmail.com",
     description="Numerical implementation of spectral methods",
