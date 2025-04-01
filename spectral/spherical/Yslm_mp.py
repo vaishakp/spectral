@@ -3,7 +3,7 @@ import os
 from multiprocessing import Pool, TimeoutError, cpu_count
 from waveformtools.single_mode import SingleMode
 import numpy as np
-from waveformtools.transforms import Yslm_vec as Yslm
+from spectral.spherical.swsh import Yslm_vec as Yslm
 from waveformtools.waveformtools import message
 from warnings import warn
 
@@ -19,7 +19,7 @@ class Yslm_mp:
     ----------
     ell_max : int
               The max :math:`\\ell` to use to evaluate the harmonic coefficients.
-    grid_info : Grid
+    Grid : Grid
                 An object of the Grid class, that is used to setup
                 the coordinate grid on which to evaluate the spherical
                 harmonics.
@@ -35,7 +35,7 @@ class Yslm_mp:
     def __init__(
         self,
         ell_max=6,
-        grid_info=None,
+        Grid=None,
         prec=16,
         nprocs=None,
         spin_weight=0,
@@ -45,13 +45,13 @@ class Yslm_mp:
     ):
 
         self._ell_max = ell_max
-        self._grid_info = grid_info
+        self._Grid = Grid
         self._prec = prec
         self._nprocs = nprocs
         self._spin_weight = spin_weight
         self._cache = cache
 
-        if grid_info is None:
+        if Grid is None:
             if theta is None and phi is None:
                 raise KeyError("Please specify the grid, or theta and phi")
             else:
@@ -60,7 +60,7 @@ class Yslm_mp:
             # Dont cache if grid type in unknown
             self._cache = False
         else:
-            if grid_info.grid_type != "GL":
+            if Grid.grid_type != "GL":
 
                 warn(
                     "Caching is only currently supported for Gauss-Legendre type grids. \n Turning of caching."
@@ -68,7 +68,7 @@ class Yslm_mp:
                 # Dont cache if grid type is not GL.
                 self._cache = False
 
-            self._theta, self._phi = grid_info.meshgrid
+            self._theta, self._phi = Grid.meshgrid
 
         self.setup_env()
         self._job_list = None
@@ -83,8 +83,8 @@ class Yslm_mp:
         return self._prec
 
     @property
-    def grid_info(self):
-        return self._grid_info
+    def Grid(self):
+        return self._Grid
 
     @property
     def nprocs(self):
@@ -137,7 +137,7 @@ class Yslm_mp:
         job_list = []
 
         mode_count = 0
-        for ell in range(self.ell_max + 1):
+        for ell in range(abs(self.spin_weight), self.ell_max + 1):
             for emm in range(-ell, ell + 1):
                 job_list.append([mode_count, ell, emm])
                 mode_count += 1
