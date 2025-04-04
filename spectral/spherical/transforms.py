@@ -438,7 +438,7 @@ def SHExpandAuto(
         # Update error details
         ############################
         result.error_info = error_info_dict
-        result.residuals = all_res
+        result.rms_residuals = all_res
         even_mode_nums = np.arange(0, ell_max, 2)
         residual_axis = [-1] + list(even_mode_nums)
 
@@ -833,7 +833,7 @@ def ComputeErrorInfo(result,
     del val_vec
     error_info_dict = {"RMS": Rerr, "dAmin": Amin, "dAmax": Amax}
     result.error_info = error_info_dict
-    result.residuals = all_res
+    result.rms_residuals = all_res
     result.residual_axis = np.arange(abs(result.spin_weight)-1, ell_max + 1)
 
     # conv = round(100 * Rerr / all_res[0], 2)
