@@ -27,14 +27,14 @@ def get_requirements():
 
 
 setuptools.setup(
-    name="spectral",
+    name="spectools",
  	version="2025.06.17.1",
     author="Vaishak Prasad",
     author_email="vaishakprasad@gmail.com",
     description="Functions for handling waveform and numerical relativity data",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://gitlab.com/vaishakp/waveformtools",
+    url="https://gitlab.com/vaishakp/spectools",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",

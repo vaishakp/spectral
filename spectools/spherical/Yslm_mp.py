@@ -3,7 +3,7 @@ import os
 from multiprocessing import Pool, TimeoutError, cpu_count
 from waveformtools.single_mode import SingleMode
 import numpy as np
-from spectral.spherical.swsh import Yslm_vec as Yslm
+from spectools.spherical.swsh import Yslm_vec as Yslm
 from waveformtools.waveformtools import message
 from warnings import warn
 

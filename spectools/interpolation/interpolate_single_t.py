@@ -2,12 +2,12 @@ import mpi4py
 from mpi4py import MPI
 import numpy as np
 from waveformtools.waveformtools import flatten_3l, message, unsort
-from spectral.spherical.grids import GLGrid
+from spectools.spherical.grids import GLGrid
 from waveformtools.diagnostics import method_info
 from parallellib.parallel_mpi import ParallelClassTemplate
-from spectral.chebyshev.chebyshev import ChebyshevSpectral
+from spectools.chebyshev.chebyshev import ChebyshevSpectral
 from waveformtools.single_mode import SingleMode
-from spectral.spherical.transforms import SHExpand, SHContract
+from spectools.spherical.transforms import SHExpand, SHContract
 from qlmtools.sxs.transforms import (
     ToSphericalPolar,
     ReorganizeCoords,
@@ -23,10 +23,10 @@ class Interpolate3D(ParallelClassTemplate):
     """Construct a spectral interpolant over a Gauss-Legendre-Lobatto
     grid and evaluate at the requested points.
 
-    The interpolation is carried out in a fully vectorized manner.
-    The angular decomposition on every shell is vectorized, and the
-    radial decomposition of each obtained angular mode coefficient
-    :math:`\\C_{\ell m}` is also vectorized.
+    The interpolation is carried out using N mpi workers. The angular
+    decomposition on every shell and the radial decomposision of each
+    obtained angular mode coefficient :math:`\\C_{\ell m}` is distributed
+    to MPI processors.
 
     The evaluation is also done in parallel. First, angular coordinates at the
     same radial point are grouped together. The parallelization happends over
@@ -35,14 +35,6 @@ class Interpolate3D(ParallelClassTemplate):
     Withing each group, the raidal evaluation is done first, then the angular
     contraction.
 
-    The improvement of this over the previous non-vectorized method is that:
-    1. the angular decompositions at several radii are computed at one-go,
-    using vectorization.
-
-    2. the radial decomposition of every angular mode is also carried out in
-    a vectorized fashion.
-
-    Thus, MPI is only used during evaluation.
 
     """
 

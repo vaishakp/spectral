@@ -1,4 +1,4 @@
-""" Classes to hold grid information
+/""" Classes to hold grid information
 
 
 Classes
@@ -11,7 +11,7 @@ GLGrid : grid info
 
 # from enum import property
 import numpy as np
-from spectral.spherical.abstract import SphericalGrid
+from spectools.spherical.abstract import SphericalGrid
 
 # from numba import jit, njit
 # import numba as nb

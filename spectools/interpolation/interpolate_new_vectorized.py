@@ -3,12 +3,12 @@ import numpy as np
 
 from parallellib.parallel_mpi import ParallelClassTemplate
 from waveformtools.waveformtools import flatten_3l, message, unsort
-from spectral.spherical.grids import GLGrid
+from spectools.spherical.grids import GLGrid
 from waveformtools.diagnostics import method_info
 
-from spectral.chebyshev.chebyshev import ChebyshevSpectral
+from spectools.chebyshev.chebyshev import ChebyshevSpectral
 from waveformtools.single_mode import SingleMode
-from spectral.spherical.transforms import SHExpand, Yslm_vec
+from spectools.spherical.transforms import SHExpand, Yslm_vec
 from waveformtools.waveforms import modes_array
 
 import pickle

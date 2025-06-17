@@ -2,7 +2,7 @@ import numpy as np
 from waveformtools.waveformtools import message
 
 # from chebyshev_basis import ToSpecMatrix, ToSpecMatrixDirect, ToPhysMatrix, ChebDerPhysToPhysMatrix, ChebDerSpecToPhysMatrix, ChebBasisMem, ChebBasisDirect, ChebBasisRec
-from spectral.chebyshev.basis import ChebyshevBasis
+from spectools.chebyshev.basis import ChebyshevBasis
 
 
 class ChebyshevSpectral:

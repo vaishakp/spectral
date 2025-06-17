@@ -537,7 +537,7 @@ def realYlm(
 
 
     """
-    from spectral.spherical.Yslm_prec_grid_mp import Yslm_prec_grid_mp
+    from spectools.spherical.Yslm_prec_grid_mp import Yslm_prec_grid_mp
 
     spin_weight = 0
 

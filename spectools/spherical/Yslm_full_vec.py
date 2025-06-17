@@ -1,7 +1,7 @@
 import numpy as np
 import math
 from math import factorial
-from spectral.spherical.swsh import check_Yslm_theta, check_Yslm_args
+from spectools.spherical.swsh import check_Yslm_theta, check_Yslm_args
 from waveformtools.waveformtools import message
 
 

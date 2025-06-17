@@ -16,7 +16,7 @@ import sys
 import sphinx
 from recommonmark.parser import CommonMarkParser
 
-# import spectral
+# import spectools
 # from spectral import get_version
 
 # -- Project information -----------------------------------------------------

@@ -19,11 +19,11 @@ build-backend = "hatchling.build"
 #build-backend = "setuptools.build_meta"
 
 [tool.hatch.version]
-path = "spectral/__init__.py"
+path = "spectools/__init__.py"
 
 
 [project]
-name = "spectral"
+name = "spectools"
 dynamic = ['dependencies', 'optional-dependencies', 'version']
 authors = [{ name="Vaishak Prasad", email="vaishakprasad@gmail.com"}, ]
 description = " Numerical implementation of various spectral methods "
@@ -42,8 +42,8 @@ files = ["requirements.txt"]
 opt = ["optional-requirements.txt"]
 
 [project.urls]
-"Homepage" = "https://gitlab.com/vaishakp/spectral"
-"Bug Tracker" = "https://gitlab.com/vaishakp/spectral/issues"
+"Homepage" = "https://gitlab.com/vaishakp/spectools"
+"Bug Tracker" = "https://gitlab.com/vaishakp/spectools/issues"
 
 [tool.hatch.metadata]
 allow-direct-references = true

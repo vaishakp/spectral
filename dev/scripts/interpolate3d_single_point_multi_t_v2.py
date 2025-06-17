@@ -13,11 +13,11 @@ from config import verbosity
 
 tverb = verbosity.levels()
 tverb.set_print_verbosity(2)
-from spectral.spherical.grids import GLGrid
+from spectools.spherical.grids import GLGrid
 import mpi4py
 from mpi4py import MPI
 from waveformtools.waveformtools import message
-from spectral.interpolation.interpolate_new import Interpolate3D
+from spectools.interpolation.interpolate_new import Interpolate3D
 from pathlib import Path
 from sxstools.data_loader import SXSDataLoader
 

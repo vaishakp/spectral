@@ -6,7 +6,7 @@ import datetime
 import re
 source_directory = os.path.dirname(os.path.abspath(__file__))
 
-package_name = "spectral"
+package_name = "spectools"
 
 # print(source_directory)
 

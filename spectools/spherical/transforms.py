@@ -5,8 +5,8 @@ from waveformtools.integrate import TwoDIntegral
 from waveformtools.single_mode import SingleMode
 from waveformtools.waveformtools import message
 from waveformtools.dataIO import construct_mode_list
-from spectral.spherical.swsh import Yslm_vec
-from spectral.spherical.Yslm_mp import Yslm_mp
+from spectools.spherical.swsh import Yslm_vec
+from spectools.spherical.Yslm_mp import Yslm_mp
 from waveformtools.modes_array import ModesArray
 
 def CheckRegReq(data):
@@ -766,7 +766,7 @@ def ComputeErrorInfo(result,
     message("Computing error info...", message_verbosity=2)
     #print("Computing error info...")
     from waveformtools.diagnostics import RMSerrs
-    from spectral.spherical.Yslm_mp import Yslm_mp
+    from spectools.spherical.Yslm_mp import Yslm_mp
 
     theta_grid, phi_grid = Grid.meshgrid
     # recon_func = np.zeros(Grid.shape, dtype=np.complex128)
@@ -918,7 +918,7 @@ def SHExpandSpherical(
         message_verbosity=3,
     )
     result = SingleMode(ell_max=ell_max, label=label, func=func)
-    from spectral.spherical.swsh import create_spherical_Yslm_modes_array
+    from spectools.spherical.swsh import create_spherical_Yslm_modes_array
     theta_grid, _ = Grid.meshgrid
 
     # Check if regularization necessary
