@@ -13,10 +13,8 @@ max-line-length = 120
 ignore = ['E203']
 
 [build-system]
-#requires = ["setuptools"]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-requirements-txt"]
 build-backend = "hatchling.build"
-#build-backend = "setuptools.build_meta"
 
 [tool.hatch.version]
 path = "spectools/__init__.py"
