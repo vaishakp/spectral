@@ -114,7 +114,7 @@ def Yslm(spin_weight, ell, emm, theta, phi):
 def check_Yslm_theta(theta_grid, threshold=1e-6):
     theta_list = np.array(theta_grid).flatten()
 
-    locs = np.where(abs(theta_list) < threshold)
+    locs = np.where(abs(theta_list) < threshold and theta_list!=0)
 
     for index in locs:
         sign = theta_list[index] / abs(theta_list[index])

@@ -34,18 +34,16 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-[tool.setuptools.dynamic]
-dependencies = {file = ["requirements.txt"]}
-optional-dependencies = {ext = { file = ["optional-requirements.txt"] }}
 
+[tool.hatch.metadata.hooks.requirements_txt]
+files = ["requirements.txt"]
+
+[tool.hatch.metadata.hooks.requirements_txt.optional-dependencies]
+opt = ["optional-requirements.txt"]
 
 [project.urls]
 "Homepage" = "https://gitlab.com/vaishakp/spectral"
 "Bug Tracker" = "https://gitlab.com/vaishakp/spectral/issues"
 
-#[tool.hatch.metadata]
-#allow-direct-references = true
-
-[tools.setuptools.dynamic]
-version = {attr = "spectral.__version__"}
-
+[tool.hatch.metadata]
+allow-direct-references = true

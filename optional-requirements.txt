@@ -1,6 +1,6 @@
 # Optional requirements
 
 # For parallel interpolation routine
-parallellib @ git+https://gitlab.com/vaishakp/parallellib@main
+parallellib@git+https://gitlab.com/vaishakp/parallellib@main
 mpi4py
 

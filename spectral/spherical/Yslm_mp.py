@@ -41,7 +41,7 @@ class Yslm_mp:
         spin_weight=0,
         theta=None,
         phi=None,
-        cache=True,
+        cache=False,
     ):
 
         self._ell_max = ell_max
