@@ -114,7 +114,13 @@ def Yslm(spin_weight, ell, emm, theta, phi):
 def check_Yslm_theta(theta_grid, threshold=1e-6):
     theta_list = np.array(theta_grid).flatten()
 
-    locs = np.where(abs(theta_list) < threshold and theta_list!=0)
+    tlocs = np.where(abs(theta_list) < threshold)[0]
+    zlocs = np.where(theta_list!=0)[0]
+    
+    if zlocs.size>0:
+        locs = [item for item in tlocs if item not in zlocs]
+    else:
+        locs = tlocs
 
     for index in locs:
         sign = theta_list[index] / abs(theta_list[index])

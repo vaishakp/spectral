@@ -1,4 +1,4 @@
-/""" Classes to hold grid information
+""" Classes to hold grid information
 
 
 Classes
