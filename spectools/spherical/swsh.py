@@ -167,14 +167,14 @@ def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid, cache=False):
 
         check_Yslm_args(spin_weight, ell, emm)
 
-        flag = query_Yslm_vec_cache(
+        in_cache = query_Yslm_vec_cache(
             spin_weight=spin_weight, ell_max=ell_max, ell=ell, emm=emm
         )
 
     else:
-        flag = False
+        in_cache = False
 
-    if flag:
+    if in_cache:
         return Yslm_vec_cache[spin_weight][ell_max][f"l{ell}m{emm}"]
 
     else:
@@ -253,7 +253,9 @@ def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid, cache=False):
             theta_list = np.array(theta_grid).flatten()
             phi_list = np.array(phi_grid).flatten()
 
+            message("Spin weight", spin_weight, message_verbosity=1)
             message("Theta values", theta_list[nan_locs], message_verbosity=1)
+            message("Phi values", phi_list[nan_locs], message_verbosity=1)
 
             value_list = np.array(value, dtype=np.complex128).flatten()
 
