@@ -1,6 +1,6 @@
 # Modules to install
 
 waveformtools
-sxstools@git+https://github.com/vaishakp/sxstools@main
+sxstools
 recommonmark
 sphinx-rtd-theme
