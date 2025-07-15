@@ -3,7 +3,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/vaishakp/spectral/commits/main/LICENSE)
 [![Documentation Status](https://readthedocs.org/projects/spectral/badge/?version=latest)](https://spectral.readthedocs.io/en/latest/?badge=latest)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![PyPI version](docs/vers_badge.svg)](https://pypi.org/project/spectral/)
+[![PyPI version](docs/vers_badge.svg)](https://pypi.org/project/spectools/)
 # spectral
 
 
