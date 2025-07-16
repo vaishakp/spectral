@@ -256,5 +256,11 @@ class Yslm_mp:
             args_order = np.argsort(mode_nums)
             mode_vals = np.array(mode_vals)[args_order]
 
+        if self.spin_weight!=0:
+            try:
+                leading_ghost_modes = np.zeros(((self.spin_weight)**2, *mode_vals[0].shape), dtype=np.complex128)
+            except ValueError:
+                leading_ghost_modes = np.zeros(((self.spin_weight)**2), dtype=np.complex128)
+        
+            mode_vals = np.concatenate((leading_ghost_modes, np.array(mode_vals)))           
         self._sYlm_modes._modes_data = np.array(mode_vals)
-        # self.__sYlm_modes._extra_mode_axes_shape = theta
