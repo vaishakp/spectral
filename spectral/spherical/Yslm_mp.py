@@ -243,7 +243,6 @@ class Yslm_mp:
         self._sYlm_modes = SingleMode(
             ell_max=self.ell_max, spin_weight=self.spin_weight
         )
-
         mode_nums = [item[0] for item in self.result_list]
         mode_vals = [item[1] for item in self.result_list]
         diffs = np.diff(mode_nums)
@@ -253,5 +252,8 @@ class Yslm_mp:
             args_order = np.argsort(mode_nums)
             mode_vals = np.array(mode_vals)[args_order]
 
-        self._sYlm_modes._modes_data = np.array(mode_vals)
+        n_zero_modes_beginning = self.spin_weight**2
+        zeros = np.zeros((n_zero_modes_beginning, *self.Grid.shape), dtype=np.complex128)
+        self._sYlm_modes._modes_data = np.concatenate((zeros, np.array(mode_vals)))
+        #self._sYlm_modes._modes_data = np.array(mode_vals)
         # self.__sYlm_modes._extra_mode_axes_shape = theta

@@ -1,13 +1,13 @@
 from sys import getsizeof
 import numpy as np
-from waveformtools.diagnostics import method_info
+from waveformtools.diagnostics import MethodInfo as method_info
 from waveformtools.integrate import TwoDIntegral
 from waveformtools.single_mode import SingleMode
 from waveformtools.waveformtools import message
 from waveformtools.dataIO import construct_mode_list
 from spectral.spherical.swsh import Yslm_vec
 from spectral.spherical.Yslm_mp import Yslm_mp
-from waveformtools.waveforms import modes_array
+from waveformtools.modes_array import ModesArray as modes_array
 
 def CheckRegReq(data):
     """Check if a function requires regularization.
@@ -781,7 +781,8 @@ def ComputeErrorInfo(result,
     sYlm = Yslm_mp(ell_max=ell_max, 
                    spin_weight=result.spin_weight, 
                    theta=theta_grid, 
-                   phi=phi_grid,)
+                   phi=phi_grid,
+                   Grid=Grid)
     sYlm.run()
 
     # Compute unsummed vetor product

@@ -192,27 +192,30 @@ def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid, cache=False):
         for aar in range(0, ell - abs_spin_weight + 1):
             subterm = 0
 
-            if (aar + abs_spin_weight - emm) < 0 or (
-                ell - aar - abs_spin_weight
-            ) < 0:
+            if (
+                (aar + abs_spin_weight - emm < 0) or 
+                (ell - aar - abs_spin_weight < 0)
+                ):
+
                 message(f"Skipping r {aar}", message_verbosity=4)
                 continue
             else:
                 term1 = comb(ell - abs_spin_weight, aar)
                 term2 = comb(ell + abs_spin_weight, aar + abs_spin_weight - emm)
-                term3 = np.power(float(-1), (ell - aar - abs_spin_weight))
-                term4 = np.exp(1j * emm * phi_grid)
+                term3 = np.power(float(-1), (aar))
+                #term4 = np.exp(1j * emm * phi_grid)
+                #term4 = np.exp(1j * emm * phi_grid)
                 term5 = np.longdouble(
                     np.power(
                         np.tan(theta_grid / 2),
                         (-2 * aar - abs_spin_weight + emm),
                     )
                 )
-                subterm = term1 * term2 * term3 * term4 * term5
+                subterm = term1 * term2 * term3 * term5
 
                 Sum += subterm
 
-        Yslmv = float(-1) ** emm * (
+        Yslmv = float(-1) ** (ell + emm - abs_spin_weight) * (
             np.sqrt(
                 np.longdouble(fact(ell + emm))
                 * np.longdouble(fact(ell - emm))
@@ -226,6 +229,7 @@ def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid, cache=False):
             )
             * np.sin(theta_grid / 2) ** (2 * ell)
             * Sum
+            * np.exp(1j * emm * phi_grid)
         )
 
         value = factor * Yslmv
@@ -358,7 +362,7 @@ def Yslm_prec_grid(spin_weight, ell, emm, theta_grid, phi_grid, prec=24):
                 prec=prec,
             )
             for thetav, phiv in ang_set
-        ]
+        ], dtype=np.complex128
     ).reshape(theta_grid.shape)
 
     return Yslm_vals
@@ -399,10 +403,6 @@ def Yslm_prec(spin_weight, ell, emm, theta, phi, prec=24):
     th, ph = sp.symbols("theta phi")
 
     Yslm_expr = Yslm_prec_sym(spin_weight, ell, emm)
-
-    if spin_weight < 0:
-        theta = np.pi - theta
-        phi = np.pi + phi
 
     return Yslm_expr.evalf(
         prec, subs={th: sp.Float(f"{theta}"), ph: sp.Float(f"{phi}")}
@@ -450,7 +450,10 @@ def Yslm_prec_sym(spin_weight, ell, emm):
     # in terms of positive spin weight
     factor = 1
     if spin_weight < 0:
+        #factor = (-1) ** ell
         factor = sp.Pow(-1, ell)
+        th = sp.pi - th
+        ph += sp.pi
 
     for aar in range(ell - abs_spin_weight + 1):
         if (aar + abs_spin_weight - emm) < 0 or (
