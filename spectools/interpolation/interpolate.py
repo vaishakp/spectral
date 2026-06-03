@@ -1153,7 +1153,7 @@ class Interpolate3D:
         if self.mpi_rank == 0:
 
             full_Clmr_t_modes_data_flat_list = self.reorganize_mpi_job_output(
-                full_Clmr_t_modes_data_list_group
+                full_Clmr_t_modes_data_group_list
             )
 
             full_Clmr_t_modes_data = np.array(
@@ -1962,6 +1962,7 @@ class Interpolate3D:
                 for emm in range(-ell, ell + 1):
                     jobs_list.append([ell, emm])
 
+            self.jobslist = jobs_list
             Ylm_local_set = []
 
             for jobid, mode_set in enumerate(jobs_list):
@@ -2065,7 +2066,7 @@ class Interpolate3D:
                     break
 
         # ello, _ = self.sphp_output_grid[0].shape
-        for jobid in range(len(jobs_list)):
+        for jobid in range(len(self.jobs_list)):
             message(
                 f"Attempting to receive packet {jobid}", message_verbosity=3
             )
