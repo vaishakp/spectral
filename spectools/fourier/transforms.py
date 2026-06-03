@@ -113,7 +113,7 @@ def set_fft_conven(utilde_orig):
                     The fft with set conventions.
     """
 
-    # Multiply by 2, take conjugate.
+    # Multiply by 2, take conjugate, scale the modes
     utilde_conven = 2 * np.conj(utilde_orig) / len(utilde_orig)
     # Restore the zero mode.
     utilde_conven[0] = utilde_conven[0] / 2
@@ -140,11 +140,12 @@ def unset_fft_conven(utilde_conven):
     utilde_np : 1darray
                 The fft data vector in numpy conventions.
     """
-
+    # Unsort the frequency axis
     utilde_np = np.fft.ifftshift(utilde_conven)
-
+    # Undo conjugate + scaling
     utilde_np = len(utilde_np) * np.conj(utilde_np) / 2
     # message(utilde_original[0])
+    # Undo 0 freq scaling
     utilde_np[0] *= 2
     # message(utilde_original[0])
 
