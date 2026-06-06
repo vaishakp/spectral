@@ -411,7 +411,7 @@ class Interpolate3D(ParallelClassTemplate):
         if self.mpi_rank == 0:
             if len(radial_decom_job_list) < self.mpi_nprocs:
                 message(
-                    f"Using only {len(flat_set_of_coords_groups)}"
+                    f"Using only {len(self.flat_set_of_coords_groups)}"
                     "processors for radial decomposition",
                     message_verbosity=2,
                 )
@@ -526,7 +526,7 @@ class Interpolate3D(ParallelClassTemplate):
         flat_set_of_coords_groups, args_order = ReorganizeCoords(
             self.sphp_output_grid
         )
-
+        self.flat_set_of_coords_groups = flat_set_of_coords_groups
         # Strategy
         ## First, group coords with same r together
         ## Second, evaluate 2d function value over angular elements

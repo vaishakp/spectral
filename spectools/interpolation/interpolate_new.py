@@ -1973,6 +1973,7 @@ class Interpolate3D(ParallelClassTemplate):
                 for emm in range(-ell, ell + 1):
                     jobs_list.append([ell, emm])
 
+            self.jobs_list = jobs_list
             Ylm_local_set = []
 
             for jobid, mode_set in enumerate(jobs_list):
@@ -2070,7 +2071,7 @@ class Interpolate3D(ParallelClassTemplate):
 
                     break
 
-        for jobid in range(len(jobs_list)):
+        for jobid in range(len(self.jobs_list)):
             message(
                 f"Attempting to receive packet {jobid}", message_verbosity=3
             )

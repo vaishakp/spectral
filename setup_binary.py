@@ -16,14 +16,42 @@ PACKAGE = os.environ.get("PACKAGE_NAME", "spectools")
 VERSION = os.environ.get("PACKAGE_VERSION", "0.0.0+private")
 
 
+# Paths relative to the repo root.
+SKIP_FILES = {
+    "spectools/spherical/Yslm_full_vec.py",
+    # Add more problematic files here:
+    # "spectools/some/problematic_module.py",
+}
+
+
+SKIP_DIRS = {
+    "tests",
+    "__pycache__",
+}
+
+
 def module_name_from_path(path: Path) -> str:
     return ".".join(path.with_suffix("").parts)
 
 
+def should_skip(path: Path) -> bool:
+    path_str = path.as_posix()
+
+    if path_str in SKIP_FILES:
+        return True
+
+    if any(part in SKIP_DIRS for part in path.parts):
+        return True
+
+    if path.name == "__init__.py":
+        return True
+
+    return False
+
+
 py_files = [
     p for p in Path(PACKAGE).rglob("*.py")
-    if p.name != "__init__.py"
-    and "tests" not in p.parts
+    if not should_skip(p)
 ]
 
 
@@ -38,14 +66,17 @@ extensions = [
 
 
 class build_py(_build_py):
-    """Copy only __init__.py files, not implementation .py files.
+    """
+    Copy only __init__.py files into the wheel.
 
-    Keep __init__.py minimal. If sensitive logic is in __init__.py,
-    move it into normal modules first.
+    This prevents skipped implementation .py files from being copied as source.
+    Therefore skipped modules will not be importable unless you provide
+    compiled/stub/pyc replacements separately.
     """
 
     def find_package_modules(self, package, package_dir):
         modules = super().find_package_modules(package, package_dir)
+
         return [
             (pkg, mod, file)
             for (pkg, mod, file) in modules
@@ -66,6 +97,7 @@ setup(
             "binding": False,
         },
         annotate=False,
+        force=True,
     ),
     cmdclass={"build_py": build_py},
     zip_safe=False,

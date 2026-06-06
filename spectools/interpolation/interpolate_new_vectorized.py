@@ -1358,7 +1358,7 @@ class Interpolate3D(ParallelClassTemplate):
             return 1
 
         n_radii = self.shape[1]
-        r_indices_at_t_step = np.arange(n_r)
+        r_indices_at_t_step = np.arange(n_radii)
 
         n_time = self.ntime
 
@@ -1865,7 +1865,7 @@ class Interpolate3D(ParallelClassTemplate):
                 message_verbosity=2,
             )
 
-            func_vals_list = flatten(
+            func_vals_list = flatten_3l(
                 self.reorganize_mpi_job_output(job_out_list_grouped)
             )
             # Preserve original input order
@@ -1934,6 +1934,7 @@ class Interpolate3D(ParallelClassTemplate):
                 for emm in range(-ell, ell + 1):
                     jobs_list.append([ell, emm])
 
+            self.jobs_list = jobs_list
             Ylm_local_set = []
 
             for jobid, mode_set in enumerate(jobs_list):
@@ -2031,7 +2032,7 @@ class Interpolate3D(ParallelClassTemplate):
 
                     break
 
-        for jobid in range(len(jobs_list)):
+        for jobid in range(len(self.jobs_list)):
             message(
                 f"Attempting to receive packet {jobid}", message_verbosity=3
             )
