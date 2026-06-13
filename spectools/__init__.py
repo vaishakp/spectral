@@ -17,8 +17,6 @@ import os
 
 package_directory = os.path.dirname(os.path.abspath(__file__))
 
-print(package_directory)
-
 
 def read_git_version():
     """Get the latest version number based on the last commit date,

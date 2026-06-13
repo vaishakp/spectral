@@ -1,8 +1,13 @@
 import numpy as np
-from waveformtools.waveformtools import message
 
 # from chebyshev_basis import ToSpecMatrix, ToSpecMatrixDirect, ToPhysMatrix, ChebDerPhysToPhysMatrix, ChebDerSpecToPhysMatrix, ChebBasisMem, ChebBasisDirect, ChebBasisRec
 from spectools.chebyshev.basis import ChebyshevBasis
+
+
+def message(*args, **kwargs):
+    """Local no-op logger for import-light Chebyshev utilities."""
+
+    return None
 
 
 class ChebyshevSpectral:
@@ -53,9 +58,7 @@ class ChebyshevSpectral:
     @property
     def collocation_points_logical(self):
 
-        if (
-            np.array(self._collocation_points_logical) == np.array(None)
-        ).all():
+        if self._collocation_points_logical is None:
 
             message(
                 "Computing logical collocation points", message_verbosity=2
@@ -72,9 +75,7 @@ class ChebyshevSpectral:
     @property
     def collocation_points_physical(self):
 
-        if (
-            np.array(self._collocation_points_physical) == np.array(None)
-        ).all():
+        if self._collocation_points_physical is None:
             # Naxis = np.arange(self.Nfuncs+1)
             message(
                 "Computing physical collocation points", message_verbosity=2
@@ -95,7 +96,7 @@ class ChebyshevSpectral:
         representation of the function to the Chebyshev polynomial
         basis."""
 
-        if (np.array(self._MatrixPhysToSpec) == np.array(None)).all():
+        if self._MatrixPhysToSpec is None:
             # N_coord_points = len(x_logical_axis)
             message("Computing ToSpec", message_verbosity=2)
             # self._MatrixPhysToSpec = ToSpecMatrixDirect(self.collocation_points_logical)
@@ -112,7 +113,7 @@ class ChebyshevSpectral:
         representation of the function from the Chebyshev polynomial
         basis."""
 
-        if (np.array(self._MatrixSpecToPhys) == np.array(None)).all():
+        if self._MatrixSpecToPhys is None:
 
             message("Computing ToPhys", message_verbosity=2)
 
@@ -131,8 +132,8 @@ class ChebyshevSpectral:
         matrix maps them to the derivate in physical coords
         `x_physical_axis`"""
 
-        if (np.array(self._MatrixD) == np.array(None)).all():
-            print("Computing MatrixD")
+        if self._MatrixD is None:
+            message("Computing MatrixD", message_verbosity=2)
             self._MatrixD = (
                 2 / (self.b - self.a)
             ) * self.ChebyshevBasisSet.ChebDerPhysToPhysMatrix(
@@ -149,7 +150,7 @@ class ChebyshevSpectral:
         of the basis functions. Given the physical coeffs, this
         matrix maps them to the derivate in physical coords `x_logical_axis`"""
 
-        if (np.array(self._MatrixDD) == np.array(None)).all():
+        if self._MatrixDD is None:
 
             message("Computing MatrixDD", message_verbosity=2)
 
@@ -171,7 +172,7 @@ class ChebyshevSpectral:
         """Transform the given coordinate value in logical space
         to physical space"""
 
-        return (self.b - self.a) * (x + 1) / 2
+        return self.a + (self.b - self.a) * (x + 1) / 2
 
     def EvaluateBasis(self, x, order):
         """Evaluate the Chebyshev basis of the required order
@@ -180,7 +181,6 @@ class ChebyshevSpectral:
         x_log = self.TransformPhysicalToLogical(x)
 
         delta = abs(x_log) - 1
-        sgn = x_log / abs(x_log)
 
         if delta > 0:
             # tol = abs(x_log + 1)
@@ -195,7 +195,7 @@ class ChebyshevSpectral:
                     message_verbosity=2,
                 )
 
-                x_log = sgn
+                x_log = np.sign(x_log)
 
         message(f"Value of x_log {x_log}", message_verbosity=4)
 
@@ -213,17 +213,9 @@ class ChebyshevSpectral:
 
         y_spec = self.MatrixPhysToSpec @ y_vals
 
-        x_min = min(x_axis)
-        x_max = max(x_axis)
+        x_log = self.TransformPhysicalToLogical(np.asarray(x_axis))
+        theta = np.arccos(np.clip(x_log, -1.0, 1.0))
+        orders = np.arange(self.Nfuncs, dtype=np.float64)
+        eval_matrix = np.cos(np.outer(theta, orders))
 
-        x_log = -1 + 2 * (x_axis - x_min) / (x_max - x_min)
-
-        y_re = np.zeros(len(x_log))
-
-        for order in range(self.Nfuncs):
-
-            y_re += y_spec[order] * self.ChebyshevBasisSet.ChebBasisDirect(
-                x_log, order
-            )
-
-        return y_re
+        return np.tensordot(eval_matrix, y_spec, axes=(1, 0))

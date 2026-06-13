@@ -1,6 +1,82 @@
 import numpy as np
 
 
+def fourier_nodes(order, a=0.0, b=2 * np.pi, endpoint=False):
+    """Return equispaced physical nodes for one periodic interval."""
+
+    if order < 2:
+        raise ValueError("Fourier order must be at least 2")
+    if not a < b:
+        raise ValueError("Fourier interval must satisfy a < b")
+    return np.linspace(a, b, order, endpoint=endpoint)
+
+
+def fourier_mode_numbers(order):
+    """Return integer Fourier mode numbers in NumPy FFT order."""
+
+    if order < 2:
+        raise ValueError("Fourier order must be at least 2")
+    return np.fft.fftfreq(order, d=1.0 / order).astype(int)
+
+
+def fourier_transform_axis(values, axis=0):
+    """Return normalized complex Fourier coefficients along one axis.
+
+    The coefficient convention is
+    ``f(theta_j) = sum_k c_k exp(i k theta_j)`` on equispaced nodes.
+    Coefficients are kept in NumPy FFT order.
+    """
+
+    values = np.asarray(values)
+    order = values.shape[axis]
+    return np.fft.fft(values, axis=axis) / order
+
+
+def fourier_contract_axis(coefficients, axis=0):
+    """Evaluate Fourier coefficients back on their equispaced nodes."""
+
+    coefficients = np.asarray(coefficients)
+    order = coefficients.shape[axis]
+    return np.fft.ifft(coefficients * order, axis=axis)
+
+
+def fourier_vandermonde(points, order, a=0.0, b=2 * np.pi):
+    """Return ``V[j, k] = exp(i m_k theta_j)`` for physical points."""
+
+    if order < 2:
+        raise ValueError("Fourier order must be at least 2")
+    if not a < b:
+        raise ValueError("Fourier interval must satisfy a < b")
+    points = np.asarray(points, dtype=float)
+    theta = 2 * np.pi * (points - a) / (b - a)
+    modes = fourier_mode_numbers(order)
+    return np.exp(1j * np.outer(theta, modes))
+
+
+def fourier_evaluate(coefficients, points, a=0.0, b=2 * np.pi, axis=0):
+    """Evaluate Fourier coefficients at arbitrary physical points."""
+
+    coefficients = np.asarray(coefficients)
+    matrix = fourier_vandermonde(
+        points,
+        coefficients.shape[axis],
+        a=a,
+        b=b,
+    )
+    moved = np.moveaxis(coefficients, axis, 0)
+    values = np.tensordot(matrix, moved, axes=(1, 0))
+    return values
+
+
+def fourier_transform_axes(values, axes):
+    """Apply normalized Fourier transforms along several axes."""
+
+    transformed = np.asarray(values)
+    for axis in axes:
+        transformed = fourier_transform_axis(transformed, axis=axis)
+    return transformed
+
+
 # @njit(parallel=True)
 def compute_fft(udata_x, delta_x):
     """Find the FFT of the samples in time-space,

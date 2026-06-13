@@ -1,11 +1,87 @@
 import numpy as np
-from waveformtools.waveformtools import message
 
 """ Deals with Chebyshev approximations of the first kind """
 
 # Nmax = 25
 # from numba import jit, njit
 # cheb_basis_array = np.zeros(Nmax)
+
+def message(*args, **kwargs):
+    """Local no-op logger for import-light Chebyshev utilities."""
+
+    return None
+
+
+def chebyshev_transform_axis(values, matrix, axis=0):
+    """Apply a one-dimensional Chebyshev transform along one array axis.
+
+    Parameters
+    ----------
+    values:
+        Array with collocation values. The length of ``values`` along ``axis``
+        must match ``matrix.shape[1]``.
+    matrix:
+        Transform matrix with shape ``(n_modes, n_points)``. For physical to
+        spectral transforms this is ``MatrixPhysToSpec``; for contractions back
+        to collocation values this can be ``MatrixSpecToPhys``.
+    axis:
+        Axis of ``values`` to transform.
+
+    Returns
+    -------
+    numpy.ndarray
+        Array with the transformed axis kept in the same axis position.
+    """
+
+    values = np.asarray(values)
+    matrix = np.asarray(matrix)
+    moved = np.moveaxis(values, axis, 0)
+    transformed = np.tensordot(matrix, moved, axes=(1, 0))
+    return np.moveaxis(transformed, 0, axis)
+
+
+def chebyshev_transform_axes(values, matrices, axes):
+    """Apply several one-dimensional Chebyshev transforms sequentially."""
+
+    transformed = np.asarray(values)
+    for matrix, axis in zip(matrices, axes):
+        transformed = chebyshev_transform_axis(
+            transformed,
+            matrix,
+            axis=axis,
+        )
+    return transformed
+
+
+def chebyshev_batched_transform_axis(values, matrices, domain_axis=0, axis=1):
+    """Apply per-domain Chebyshev transforms along one axis.
+
+    ``matrices`` may be either one shared transform matrix with shape
+    ``(n_modes, n_points)`` or one transform per domain with shape
+    ``(n_domains, n_modes, n_points)``.
+    """
+
+    values = np.asarray(values)
+    matrices = np.asarray(matrices)
+
+    if matrices.ndim == 2:
+        return chebyshev_transform_axis(values, matrices, axis=axis)
+
+    if matrices.ndim != 3:
+        raise ValueError("matrices must have shape (modes, points) or "
+                         "(domains, modes, points)")
+
+    values_by_domain = np.moveaxis(values, domain_axis, 0)
+    axis_in_domain = axis if axis < domain_axis else axis - 1
+    if len(values_by_domain) != len(matrices):
+        raise ValueError("number of domains in values and matrices differ")
+
+    transformed = [
+        chebyshev_transform_axis(domain_values, matrix, axis=axis_in_domain)
+        for domain_values, matrix in zip(values_by_domain, matrices)
+    ]
+    return np.moveaxis(np.stack(transformed, axis=0), 0, domain_axis)
+
 
 # @njit(parallel=True)
 
@@ -22,6 +98,8 @@ class ChebyshevBasis:
         self._Nfuncs = Nfuncs
         self._basis_storage = {}
         self._basis_der_storage = {}
+        self._to_phys_matrix_storage = {}
+        self._to_spec_matrix_storage = {}
         self._basis_calc_method = basis_calc_method
 
         if self._basis_calc_method == "memoize":
@@ -131,7 +209,7 @@ class ChebyshevBasis:
 
         for order in range(Nmax):
 
-            u_coord += u_spec(order) * self.ChebBasis(x_axis, order)
+            u_coord += u_spec[order] * self.ChebBasis(x_axis, order)
 
         return u_coord
 
@@ -140,26 +218,30 @@ class ChebyshevBasis:
         """Transformation matrix from physical
         to Chebyshev spectral space"""
 
+        x_axis = np.asarray(x_axis, dtype=np.float64)
+        key = self._axis_cache_key(x_axis)
+        if key in self._to_phys_matrix_storage:
+            return self._to_phys_matrix_storage[key]
+
         Nmax = len(x_axis)
-        # matrix = np.array([Nmax, Nmax], dtype=np.float64)
-
-        matrix = np.zeros((Nmax, Nmax), dtype=np.float64)
-        # spec_vec = np.zeros(Nmax)
-
-        for order in range(Nmax):
-
-            u_coord = self.ChebBasis(x_axis, order)
-
-            matrix[:, order] = u_coord[:]
-            # atrix = np.concatenate((matrix, u_coord))
-
+        theta = np.arccos(np.clip(x_axis, -1.0, 1.0))
+        orders = np.arange(Nmax, dtype=np.float64)
+        matrix = np.cos(np.outer(theta, orders))
+        self._to_phys_matrix_storage[key] = matrix
         return matrix
 
     # @njit(parallel=False)
     def ToSpecMatrix(self, x_axis):
         """Transformation matrix from the physical
         to spectral space"""
-        return np.linalg.inv(self.ToPhysMatrix(x_axis))
+
+        x_axis = np.asarray(x_axis, dtype=np.float64)
+        key = self._axis_cache_key(x_axis)
+        if key not in self._to_spec_matrix_storage:
+            self._to_spec_matrix_storage[key] = np.linalg.inv(
+                self.ToPhysMatrix(x_axis)
+            )
+        return self._to_spec_matrix_storage[key]
 
     # @njit(parallel=True)
     def ToSpecMatrixDirect(self, x_axis):
@@ -273,6 +355,12 @@ class ChebyshevBasis:
         t_matrix_coord_to_spec = self.ToSpecMatrix(x_axis)
 
         return der_mat_spec_to_phys @ t_matrix_coord_to_spec
+
+    def _axis_cache_key(self, x_axis):
+        """Return a stable cache key for one collocation/evaluation axis."""
+
+        axis = np.ascontiguousarray(x_axis, dtype=np.float64)
+        return (axis.shape, axis.dtype.str, axis.tobytes())
 
     # ChebBasis = ChebBasisMem
     # ChebBasis = ChebBasisDirect
