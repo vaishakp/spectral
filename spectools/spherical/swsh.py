@@ -56,12 +56,9 @@ def Yslm(spin_weight, ell, emm, theta, phi):
     """
 
     check_Yslm_args(spin_weight, ell, emm)
-    import sympy as sp
-
-    # theta, phi = sp.symbols('theta phi')
+    from math import comb
 
     fact = math.factorial
-    # fact = sp.factorial
     Sum = 0
 
     factor = 1
@@ -73,23 +70,32 @@ def Yslm(spin_weight, ell, emm, theta, phi):
     abs_spin_weight = abs(spin_weight)
 
     for aar in range(ell - abs_spin_weight + 1):
-        if (aar + abs_spin_weight - emm) < 0 or (
-            ell - aar - abs_spin_weight
-        ) < 0:
-            message(f"Skippin r {aar}", message_verbosity=3)
+        cidx = aar + abs_spin_weight - emm
+        if cidx < 0:                       # binomial below would be zero
             continue
-        else:
-            Sum += (
-                sp.binomial(ell - abs_spin_weight, aar)
-                * sp.binomial(
-                    ell + abs_spin_weight, aar + abs_spin_weight - emm
-                )
-                * np.power((-1), (ell - aar - abs_spin_weight))
-                * np.exp(1j * emm * phi)
-                / np.power(
-                    np.tan(theta / 2), (2 * aar + abs_spin_weight - emm)
-                )
-            )
+        b1 = comb(ell - abs_spin_weight, aar)
+        b2 = comb(ell + abs_spin_weight, cidx)
+
+        # Terms with a vanishing binomial contribute nothing; skipping them
+        # avoids the 0 * inf -> NaN that the old cot/tan form produced at the
+        # poles, where one binomial is zero but cot(theta/2)^k diverges.
+        if b1 == 0 or b2 == 0:
+            continue
+
+        # sin(t/2)^(2l) / tan(t/2)^k  ==  cos(t/2)^k * sin(t/2)^(2l-k),
+        # with k = 2*aar + |s| - emm.  For nonzero binomials both exponents
+        # are >= 0, so this closed form is finite at theta = 0, pi (no
+        # division, no coordinate singularity).
+        cos_exp = 2 * aar + abs_spin_weight - emm
+        sin_exp = 2 * ell - cos_exp
+        Sum += (
+            b1
+            * b2
+            * np.power((-1), (ell - aar - abs_spin_weight))
+            * np.exp(1j * emm * phi)
+            * np.power(np.cos(theta / 2), cos_exp)
+            * np.power(np.sin(theta / 2), sin_exp)
+        )
 
     Sum = complex(Sum)
     Yslm = (-1) ** emm * (
@@ -104,7 +110,6 @@ def Yslm(spin_weight, ell, emm, theta, phi):
                 * fact(ell - abs_spin_weight)
             )
         )
-        * np.sin(theta / 2) ** (2 * ell)
         * Sum
     )
 
@@ -178,14 +183,14 @@ def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid, cache=False):
         return Yslm_vec_cache[spin_weight][ell_max][f"l{ell}m{emm}"]
 
     else:
-        theta_grid = check_Yslm_theta(theta_grid)
-
         from math import comb
 
         fact = math.factorial
 
-        theta_grid = np.array(theta_grid)
-        phi_grid = np.array(phi_grid)
+        # The pole-stable cos/sin closed form below has no coordinate
+        # singularity, so theta no longer needs nudging away from 0/pi.
+        theta_grid = np.asarray(theta_grid, dtype=float)
+        phi_grid = np.asarray(phi_grid, dtype=float)
 
         Sum = 0 + 1j * 0
 
@@ -193,34 +198,36 @@ def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid, cache=False):
         if spin_weight < 0:
             factor = (-1) ** ell
             theta_grid = np.pi - theta_grid
-            phi_grid += np.pi
+            phi_grid = phi_grid + np.pi
 
         abs_spin_weight = abs(spin_weight)
 
         for aar in range(0, ell - abs_spin_weight + 1):
-            subterm = 0
-
-            if (aar + abs_spin_weight - emm) < 0 or (
-                ell - aar - abs_spin_weight
-            ) < 0:
-                message(f"Skipping r {aar}", message_verbosity=4)
+            cidx = aar + abs_spin_weight - emm
+            if cidx < 0:                       # binomial below would be zero
                 continue
-            else:
-                term1 = comb(ell - abs_spin_weight, aar)
-                term2 = comb(
-                    ell + abs_spin_weight, aar + abs_spin_weight - emm
-                )
-                term3 = np.power(float(-1), (ell - aar - abs_spin_weight))
-                term4 = np.exp(1j * emm * phi_grid)
-                term5 = np.longdouble(
-                    np.power(
-                        np.tan(theta_grid / 2),
-                        (-2 * aar - abs_spin_weight + emm),
-                    )
-                )
-                subterm = term1 * term2 * term3 * term4 * term5
+            term1 = comb(ell - abs_spin_weight, aar)
+            term2 = comb(ell + abs_spin_weight, cidx)
 
-                Sum += subterm
+            # Terms with a vanishing binomial contribute nothing; skipping
+            # them avoids the 0 * inf -> NaN that the old cot/tan form
+            # produced at the poles, where one binomial is zero but
+            # cot(theta/2)^k diverges.
+            if term1 == 0 or term2 == 0:
+                continue
+
+            # sin(t/2)^(2l) / tan(t/2)^k == cos(t/2)^k * sin(t/2)^(2l-k),
+            # with k = 2*aar + |s| - emm.  Both exponents are >= 0 for
+            # nonzero binomials, so this is finite at theta = 0, pi.
+            cos_exp = 2 * aar + abs_spin_weight - emm
+            sin_exp = 2 * ell - cos_exp
+            term3 = np.power(float(-1), (ell - aar - abs_spin_weight))
+            term4 = np.exp(1j * emm * phi_grid)
+            term5 = np.power(np.cos(theta_grid / 2), cos_exp) * np.power(
+                np.sin(theta_grid / 2), sin_exp
+            )
+
+            Sum = Sum + term1 * term2 * term3 * term4 * term5
 
         Yslmv = float(-1) ** emm * (
             np.sqrt(
@@ -234,7 +241,6 @@ def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid, cache=False):
                     * np.longdouble(fact(ell - abs_spin_weight))
                 )
             )
-            * np.sin(theta_grid / 2) ** (2 * ell)
             * Sum
         )
 
