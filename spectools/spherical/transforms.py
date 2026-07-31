@@ -1100,7 +1100,7 @@ def SHContractWftools(modes, Grid=None, ell_max=None):
         ell_max = modes.ell_max
 
     # message(f"Modes in SHContract {modes}", message_verbosity=4)
-    from waveformtools.waveforms import construct_mode_list
+    from waveformtools.dataIO import construct_mode_list
 
     # Construct modes list
     modes_list = construct_mode_list(ell_max=ell_max, spin_weight=0)
@@ -1139,7 +1139,7 @@ def SHContractWftoolsVec(modes, Grid=None, ell_max=None):
         ell_max = modes.ell_max
 
     # message(f"Modes in SHContract {modes}", message_verbosity=4)
-    from waveformtools.waveforms import construct_mode_list
+    from waveformtools.dataIO import construct_mode_list
 
     # Construct modes list
     # modes_list = construct_mode_list(ell_max=ell_max, spin_weight=0)
@@ -1195,7 +1195,7 @@ def SHContractEllWftools(modes, ell, Grid=None):
         raise ValueError("Please suply a valid mode number")
     # message(f"Modes in SHContract {modes}", message_verbosity=4)
     # print(modes)
-    from waveformtools.waveforms import construct_mode_list
+    from waveformtools.dataIO import construct_mode_list
 
     theta_grid, phi_grid = Grid.meshgrid
     recon_func_comp = np.zeros(theta_grid.shape, dtype=np.complex128)
