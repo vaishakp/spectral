@@ -1,0 +1,3 @@
+# spectools.spherical and spectools.interpolation
+waveformtools
+sxstools

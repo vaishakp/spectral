@@ -38,6 +38,13 @@ files = ["requirements.txt"]
 
 [tool.hatch.metadata.hooks.requirements_txt.optional-dependencies]
 opt = ["optional-requirements.txt"]
+# spectools.spherical and spectools.interpolation need these; the
+# import-light paths (chebyshev, fourier) do not. Kept OUT of the runtime
+# requirements because waveformtools -> lalsuite and sxstools -> scri ->
+# spinsfast have no Windows wheels, which made the whole package
+# uninstallable there for Chebyshev-only users.
+spherical = ["spherical-requirements.txt"]
+docs = ["docs-requirements.txt"]
 
 [project.urls]
 "Homepage" = "https://gitlab.com/vaishakp/spectools"

@@ -1,8 +1,13 @@
 import numpy as np
 import sympy as sp
-from waveformtools.waveformtools import message
 
 """ Deals with Chebyshev approximations of the first kind """
+
+
+def message(*args, **kwargs):
+    """Local no-op logger for import-light Chebyshev utilities."""
+
+    return None
 
 # Nmax = 25
 # from numba import jit, njit

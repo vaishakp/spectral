@@ -21,6 +21,37 @@ This is a collection of various spectral methods for numerical appraches.
     * Spin weighted spherical harmonics
    
 
+# Installing
+
+```
+pip install spectools
+```
+
+That gives the **import-light** part of the package -- `spectools.chebyshev`
+and `spectools.fourier` -- which needs only `numpy`. It installs anywhere
+numpy does, including Windows.
+
+The spherical-harmonic and interpolation modules need more:
+
+```
+pip install spectools[spherical]     # spectools.spherical, spectools.interpolation
+pip install spectools[docs]          # to build the documentation
+```
+
+**Changed in 2026.09:** `waveformtools` and `sxstools` used to be
+unconditional requirements, so `pip install spectools` pulled them in even
+for a user who only wanted a Chebyshev basis. They pull `lalsuite`, which
+publishes no Windows wheel and no source distribution, and `scri` ->
+`spinsfast`, which has no Windows wheel and does not build under MSVC -- so
+the whole package was uninstallable on Windows. They are now the
+`[spherical]` extra. `recommonmark` and `sphinx-rtd-theme` were also
+runtime requirements and are documentation-build tools; they are now
+`[docs]`. `numpy` was never declared at all and now is.
+
+If you use `spectools.spherical` or `spectools.interpolation`, install
+`spectools[spherical]`; a bare `pip install spectools` will no longer bring
+their dependencies.
+
 
 # Citing this code
 

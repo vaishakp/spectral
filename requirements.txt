@@ -1,6 +1,17 @@
-# Modules to install
-
-waveformtools
-sxstools
-recommonmark
-sphinx-rtd-theme
+# RUNTIME requirements only.
+#
+# Everything else moved to extras in pyproject.toml. waveformtools and
+# sxstools were declared here but are needed only by spectools.spherical
+# and spectools.interpolation; the import-light paths (chebyshev, fourier)
+# do not touch them. They are not free to require: waveformtools pulls
+# lalsuite, which publishes no Windows wheel AND no sdist, and sxstools
+# pulls scri -> spinsfast, which has no Windows wheel and does not build
+# under MSVC. Declaring them made spectools uninstallable on Windows for
+# users who only wanted the Chebyshev basis.
+#
+# recommonmark and sphinx-rtd-theme are documentation-build tools and were
+# never runtime requirements of anything.
+#
+# numpy was NOT declared before and is genuinely required; it arrived
+# transitively, which is luck rather than a dependency declaration.
+numpy
