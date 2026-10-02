@@ -28,7 +28,7 @@ def get_requirements():
 
 setuptools.setup(
     name="spectools",
- 	version="2026.09.09",
+ 	version="2026.10.02",
     author="Vaishak Prasad",
     author_email="vaishakprasad@gmail.com",
     description="Functions for handling waveform and numerical relativity data",
