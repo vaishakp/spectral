@@ -1,172 +1,133 @@
 # Configuration file for the Sphinx documentation builder.
 #
-# This file only contains a selection of the most common options. For a full
-# list see the documentation:
+# For the full list of options see
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 # -- Path setup --------------------------------------------------------------
 
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-#
 import os
 import sys
 
-import sphinx
-from recommonmark.parser import CommonMarkParser
-
-# import spectools
-# from spectral import get_version
+# Make the package importable without installing it, so that autosummary can
+# introspect it both on Read the Docs and from a plain source checkout.
+sys.path.insert(0, os.path.abspath("../.."))
 
 # -- Project information -----------------------------------------------------
 
-# Load the package into pythonpath
-cwd = os.getcwd()
-print("CurrWD", cwd)
-
-pack_path = cwd + "/../../"
-sys.path.append(pack_path)
-
-print("Pythonpath:", sys.path)
-# with open('../../public/date.txt', 'r') as f:
-#    proj_vers = f.readline()
-
-# Fetch the latest commit version
-dvers = os.popen("git log -1 --date=short | grep Date").read()
-
-print("Date fetched", dvers)
-print("Version string", dvers[8:-1])
-proj_vers = dvers
-print("Parsed version:", proj_vers)
-spectral_version = proj_vers  # get_version()
-
-# -- Project information -----------------------------------------------------
-
-project = "spectral"
-copyright = "2020, Vaishak Prasad"
+project = "spectools"
+copyright = "2020-2026, Vaishak Prasad"
 author = "Vaishak Prasad"
 
+
+def _get_version():
+    """Read ``__version__`` out of ``spectools/__init__.py``.
+
+    Parsed rather than imported so that a missing optional dependency can
+    never break the version string.
+    """
+
+    init_file = os.path.join(
+        os.path.abspath("../.."), "spectools", "__init__.py"
+    )
+
+    try:
+        with open(init_file, "r", encoding="utf-8") as source:
+            for line in source:
+                if line.startswith("__version__"):
+                    return line.split("=")[1].strip().strip("\"'")
+    except OSError:
+        pass
+
+    return "unknown"
+
+
 # The short X.Y version
-version = spectral_version
+version = _get_version()
 # The full version, including alpha/beta/rc tags
 release = version
 
 # -- General configuration ---------------------------------------------------
 
-# Add any Sphinx extension module names here, as strings. They can be
-# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
-# ones.
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "numpydoc",
     "sphinx.ext.doctest",
-    #    "sphinx.ext.intersphinx",
+    "sphinx.ext.intersphinx",
     "sphinx.ext.todo",
     "sphinx.ext.mathjax",
     "sphinx.ext.ifconfig",
     "sphinx.ext.viewcode",
-    #    "sphinx.ext.imgmath",
-    #    "myst_parser"
+    "sphinx.ext.napoleon",
     "recommonmark",
 ]
 
-
 autosummary_generate = True
+autosummary_imported_members = False
 
 autodoc_docstring_signature = True
-if sphinx.version_info < (1, 8):
-    autodoc_default_flags = ["members", "undoc-members"]
-else:
-    autodoc_default_options = {
-        "members": None,
-        "undoc-members": None,
-        "special-members": "__call__",
-    }
+autodoc_default_options = {
+    "members": True,
+    # No "undoc-members": every public object now carries a docstring, so
+    # the only things this would add are bare dataclass field descriptors,
+    # which are already covered by their class's Attributes section --
+    # and which numpydoc renders as malformed markup.
+    "show-inheritance": True,
+    "special-members": "__call__",
+}
 
-# -- Try to auto-generate numba-decorated signatures -----------------
+# The spherical and interpolation subpackages import heavy optional
+# dependencies (MPI, waveformtools -> lalsuite, sxstools -> scri ->
+# spinsfast). None of them are installable on a documentation builder, so
+# mock them out: autodoc only needs the docstrings, not working imports.
+autodoc_mock_imports = [
+    "gmpy2",
+    "h5py",
+    "matplotlib",
+    "mpi4py",
+    "numba",
+    "parallellib",
+    "qlmtools",
+    "scri",
+    "spherical",
+    "spinsfast",
+    "sxstools",
+    "sympy",
+    "waveformtools",
+]
 
-# import numba
-import inspect
+# numpydoc insists on documenting every class member in its own stub page,
+# which duplicates what autosummary already emits and asks for stub files
+# that autosummary was never told to generate.
+numpydoc_show_class_members = False
+numpydoc_class_members_toctree = False
 
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy", None),
+}
 
-# def process_numba_docstring(app, what, name, obj, options, signature, return_annotation):
-#    if type(obj) is not numba.core.registry.CPUDispatcher:
-#        return (signature, return_annotation)
-#    else:
-#        original = obj.py_func
-#        orig_sig = inspect.signature(original)
-
-#        if (orig_sig.return_annotation) is inspect._empty:
-#            ret_ann = None
-#        else:
-#            ret_ann = orig_sig.return_annotation.__name__
-#
-#        return (str(orig_sig), ret_ann)
-
-
-# def setup(app):
-#    app.connect("autodoc-process-signature", process_numba_docstring)
-
-
-# --------------------------------------------------------------------
-
-# Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 
-# List of patterns, relative to source directory, that match files and
-# directories to ignore when looking for source files.
-# This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
-# The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
-#
-if sphinx.version_info < (1, 8):
-    source_parsers = {
-        ".md": CommonMarkParser,
-    }
-    source_suffix = [".rst", ".md"]
-else:
-    source_suffix = {
-        ".rst": "restructuredtext",
-        ".txt": "markdown",
-        ".md": "markdown",
-    }
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "markdown",
+}
 
 # -- Options for HTML output -------------------------------------------------
 
-# The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes.
-#
 html_theme = "sphinx_rtd_theme"
-# html_style = 'css/my_theme.css'
 
 html_theme_options = {
-    "analytics_id": "G-XXXXXXXXXX",  #  Provided by Google in your dashboard
-    #'analytics_anonymize_ip': False,
-    #'logo_only': False,
-    "display_version": True,
-    #'prev_next_buttons_location': 'bottom',
-    #'style_external_links': False,
-    #'vcs_pageview_mode': '',
     "style_nav_header_background": "blue",
-    # 	"body_max_width" : "70%"
-    # Toc options
-    #'collapse_navigation': True,
-    #'sticky_navigation': True,
-    #'navigation_depth': 4,
-    #'includehidden': True,
-    #'titles_only': False
+    "navigation_depth": 4,
 }
 
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 
 # -- Options for todo extension ----------------------------------------------
 
-# If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True

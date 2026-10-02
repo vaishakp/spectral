@@ -1,3 +1,27 @@
+"""Discrete Fourier transforms with fixed conventions.
+
+Wraps ``numpy.fft`` so that the sign and normalisation conventions are
+settled in one place. Throughout this module coefficients satisfy
+
+.. math::
+
+   f(\\theta_j) = \\sum_k c_k e^{i k \\theta_j}
+
+on equispaced nodes, and are kept in NumPy FFT order -- so
+``fourier_mode_numbers(n)`` returns ``[0, 1, ..., n//2 - 1, -n//2, ..., -1]``
+rather than a monotonically increasing list.
+
+Two families of functions live here. ``fourier_nodes``,
+``fourier_transform_axis``, ``fourier_contract_axis``,
+``fourier_vandermonde`` and ``fourier_evaluate`` operate on one periodic
+interval ``[a, b)`` and support transforming along a chosen array axis.
+``compute_fft`` and ``compute_ifft`` are the older signal-processing
+helpers, which work in terms of a sample spacing and return a shifted
+frequency axis.
+
+This module depends only on ``numpy``.
+"""
+
 import numpy as np
 
 

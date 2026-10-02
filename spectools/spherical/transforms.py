@@ -1,3 +1,63 @@
+"""Spin-weighted spherical harmonic transforms.
+
+Expands functions sampled on an angular grid into spin-weighted spherical
+harmonic modes, and contracts modes back onto a grid.
+
+Expansion
+---------
+``SHExpandSimple``
+    Expand to a band limit you fix in advance. The usual entry point.
+``SHExpandAuto``
+    Raise the band limit until the residual stops improving, rather than
+    fixing it up front.
+``SHExpandSimpleSlow``
+    Reference implementation, looping over modes. Slow, but useful for
+    checking the vectorised paths.
+``SHExpandSpack``, ``SHExpandSpherical``
+    Delegate to ``spherepack`` (via ``pyspharm``) and to the ``spherical``
+    package respectively, with ``modes_spack_to_wftools`` and
+    ``get_spack_mode_index`` converting between mode conventions.
+
+Contraction
+-----------
+``SHContract`` dispatches to the ``Spack``, ``Wftools`` and
+``WftoolsVec`` backends; ``SHContractEllWftools`` reconstructs the
+contribution of a single :math:`\\ell`.
+
+Regularization
+--------------
+A function that does not vanish at the poles converges slowly in this
+basis. ``CheckRegReq`` detects the condition, and ``SHRegularize`` /
+``SHDeRegularize`` divide it out before the expansion and restore it
+afterwards. Pass ``reg=True`` to the expansion routines to have this done
+for you.
+
+Diagnostics
+-----------
+Pass ``error_info=True`` to get per-mode residuals and the RMS deviation of
+the reconstruction from the original, computed by ``ComputeErrorInfo``.
+
+Grids must be :mod:`spectools.spherical.grids` instances; Gauss-Legendre
+grids give exact quadrature for band-limited functions and should be
+preferred.
+
+Requires the ``spherical`` extra.
+
+Examples
+--------
+>>> import numpy as np
+>>> from spectools.spherical.grids import GLGrid
+>>> from spectools.spherical.transforms import SHExpandSimple, SHContract
+>>> from waveformtools.diagnostics import MethodInfo
+>>> grid = GLGrid(L=10)
+>>> theta, phi = grid.meshgrid
+>>> f = 1.0 + np.cos(theta) + np.sin(theta) * np.cos(phi)
+>>> method = MethodInfo(ell_max=10, int_method="GL")
+>>> modes = SHExpandSimple(f, grid, method)
+>>> bool(np.allclose(np.asarray(SHContract(modes, grid, 10, method)), f))
+True
+"""
+
 from sys import getsizeof
 import numpy as np
 from waveformtools.diagnostics import MethodInfo
@@ -996,20 +1056,55 @@ def modes_spack_to_wftools(
 
 
 def get_spack_mode_index(ell, emm, ell_max):
-    """Get the mode index in a spherepack mode array
-    given a mode
+    """Get the mode index in a spherepack mode array given a mode.
 
-              #
-             ##
-            ###
-           ####
-          #####
-         ######
-        #######
-       ########
-      #########
-     ##########
-    ###########
+    ``spherepack`` stores only the :math:`m \\ge 0` modes, packed
+    :math:`m`-major: all modes of a given :math:`m` are contiguous, and
+    each successive :math:`m` has one fewer mode than the last, since
+    :math:`\\ell \\ge m`. The storage therefore fills a triangle::
+
+                  #
+                 ##
+                ###
+               ####
+              #####
+             ######
+            #######
+           ########
+          #########
+         ##########
+        ###########
+
+    Each row is one value of :math:`m` and each ``#`` one stored mode. The
+    index is obtained by counting the modes that precede the requested
+    one: the fully unoccupied levels above it, plus the unoccupied part of
+    its own level.
+
+    Parameters
+    ----------
+    ell : int
+        Mode number :math:`\\ell`.
+    emm : int
+        Azimuthal mode number :math:`m`. Must be non-negative, and no
+        greater than ``ell``.
+    ell_max : int
+        Band limit of the mode array being indexed. The packing depends on
+        it, so the same :math:`(\\ell, m)` indexes differently in arrays of
+        different band limit.
+
+    Returns
+    -------
+    int
+        Zero-based position of the mode in the flat ``spherepack`` array.
+
+    Raises
+    ------
+    AssertionError
+        If ``emm`` is negative, or if ``abs(emm) > ell``.
+
+    See Also
+    --------
+    modes_spack_to_wftools : Convert a whole ``spherepack`` mode array.
     """
 
     assert emm >= 0, "Spherepack only save positive m modes"

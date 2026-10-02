@@ -1,3 +1,22 @@
+"""Parallel spin-weighted spherical harmonics at arbitrary precision.
+
+Evaluates :math:`{}_sY_{\\ell m}` over a grid for every mode up to a band
+limit, distributing the modes across a ``multiprocessing`` pool. Each mode
+is computed by :func:`spectools.spherical.swsh.Yslm_vec` to the requested
+number of digits.
+
+Use this when double precision is not enough and the cost of the symbolic
+evaluation is worth parallelising.
+:mod:`spectools.spherical.Yslm_full_vec` is far faster but limited to
+roughly 11 digits.
+
+Results can be cached across instances in a class-level store, but only for
+Gauss-Legendre grids, where the grid is determined entirely by its band
+limit; caching is disabled automatically for any other grid type.
+
+Requires the ``spherical`` extra.
+"""
+
 import multiprocessing
 import os
 from multiprocessing import Pool, TimeoutError, cpu_count
@@ -76,53 +95,103 @@ class Yslm_mp:
 
     @property
     def ell_max(self):
+        """int: Band limit; harmonics are computed for all :math:`\\ell` up to this."""
         return self._ell_max
 
     @property
     def prec(self):
+        """int: Number of digits of precision to evaluate the harmonics to."""
         return self._prec
 
     @property
     def Grid(self):
+        """SphericalGrid or None: The grid, if one was supplied.
+
+        ``None`` when ``theta`` and ``phi`` were given directly instead.
+        """
         return self._Grid
 
     @property
     def nprocs(self):
+        """int or None: Worker processes to use.
+
+        ``None`` until :meth:`get_max_nprocs` resolves it, after which it
+        defaults to half the available CPUs.
+        """
         return self._nprocs
 
     @property
     def spin_weight(self):
+        """int: Spin weight :math:`s` of the harmonics."""
         return self._spin_weight
 
     @property
     def job_list(self):
+        """list or None: The ``(ell, emm)`` pairs to farm out to the pool.
+
+        ``None`` until :meth:`create_job_list` is called.
+        """
         return self._job_list
 
     @property
     def result_list(self):
+        """list: Per-mode results collected from the worker processes."""
         return self._result_list
 
     @property
     def theta(self):
+        """ndarray: Polar angles :math:`\\theta` to evaluate on."""
         return self._theta
 
     @property
     def phi(self):
+        """ndarray: Azimuthal angles :math:`\\phi` to evaluate on."""
         return self._phi
 
     @property
     def sYlm_modes(self):
+        """SingleMode: The assembled harmonics, indexed by mode.
+
+        Set once the parallel run has completed; accessing it before then
+        raises ``AttributeError``.
+        """
         return self._sYlm_modes
 
     @property
     def cache(self):
+        """bool: Whether results are cached in the class-level store.
+
+        Forced to ``False`` for non-Gauss-Legendre grids, and when
+        ``theta`` and ``phi`` are supplied directly, since the grid cannot
+        then be identified by band limit alone.
+        """
         return self._cache
 
     def mode(self, ell, emm):
+        """Return the computed harmonic for a single mode.
+
+        Parameters
+        ----------
+        ell, emm : int
+            Mode numbers :math:`\\ell` and :math:`m`.
+
+        Returns
+        -------
+        ndarray
+            :math:`{}_sY_{\\ell m}` sampled on the grid.
+        """
         return self.sYlm_modes.mode(ell, emm)
 
     def setup_env(self):
-        """Imports"""
+        """Import the ``multiprocessing`` names used by the worker pool.
+
+        .. note::
+
+           A no-op in practice: the imports are local to this method and
+           go out of scope the moment it returns, and the same names are
+           already imported at module level. Retained because
+           ``__init__`` calls it.
+        """
         from multiprocessing import Pool, TimeoutError, cpu_count
 
     def get_max_nprocs(self):

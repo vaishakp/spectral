@@ -1,7 +1,17 @@
+"""Chebyshev polynomial basis of the first kind, in arbitrary precision.
+
+The arbitrary-precision counterpart of :mod:`spectools.chebyshev.basis`:
+the same :class:`ChebyshevBasis` interface, but evaluated symbolically with
+``sympy`` so that collocation points, transform matrices and derivative
+matrices can be obtained to more digits than double precision allows.
+
+Correspondingly slower than the ``numpy`` implementation. Use it to
+generate reference values, or where the conditioning of the transform
+matrices at high ``Nfuncs`` makes double precision insufficient.
+"""
+
 import numpy as np
 import sympy as sp
-
-""" Deals with Chebyshev approximations of the first kind """
 
 
 def message(*args, **kwargs):
@@ -49,17 +59,33 @@ class ChebyshevBasis:
 
     @property
     def basis_storage(self):
+        """dict: Cache of basis functions already evaluated, keyed by order."""
         return self._basis_storage
 
     @property
     def basis_der_storage(self):
+        """dict: Cache of basis-function derivatives, keyed by order."""
         return self._basis_der_storage
 
     @property
     def Nfuncs(self):
+        """int: Number of basis functions, i.e. of collocation points."""
         return self._Nfuncs
 
     def CollocationPoints(self):
+        """Return the Gauss-Lobatto collocation points on ``[-1, 1]``.
+
+        Returns
+        -------
+        ndarray
+            The ``Nfuncs`` points ``-cos(n pi / (Nfuncs - 1))``, ascending
+            from ``-1`` to ``1``.
+
+        Notes
+        -----
+        Evaluated in double precision even in this module; only the basis
+        functions and matrices are computed symbolically.
+        """
         Naxis = np.arange(self.Nfuncs)
         # Naxis = np.arange()
 
@@ -68,6 +94,20 @@ class ChebyshevBasis:
 
     # @njit(parallel=True)
     def MapToAB(self, x_axis, a, b):
+        """Map logical coordinates on ``[-1, 1]`` to physical ``[a, b]``.
+
+        Parameters
+        ----------
+        x_axis : array_like
+            Coordinates on the logical interval ``[-1, 1]``.
+        a, b : float
+            Endpoints of the physical interval.
+
+        Returns
+        -------
+        ndarray
+            ``a + (b - a) * (1 + x_axis) / 2``.
+        """
 
         return a + (b - a) * (1 + x_axis) / 2
 

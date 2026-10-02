@@ -21,7 +21,34 @@ class DecayClassification(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class ChebyshevPowerDiagnostic:
-    """Summary of Chebyshev modal power and truncation behavior."""
+    """Summary of Chebyshev modal power and truncation behavior.
+
+    Returned by :func:`diagnose_chebyshev_power`. Immutable.
+
+    Attributes
+    ----------
+    tail_ratio : float
+        Power in the highest ``tail_modes`` divided by the total modal
+        power. Small means the expansion is resolved.
+    decay : DecayClassification
+        Coarse classification of how the coefficients decay.
+    total_power : float
+        Summed power over all modes.
+    tail_power : float
+        Summed power over the highest ``tail_modes`` only.
+    leading_power : float
+        Power in the lowest mode.
+    last_power : float
+        Power in the highest mode.
+    slope : float
+        Least-squares slope of ``log10`` normalised power against mode
+        index, fitted over the tail. More negative means faster decay.
+    recommended_order : int or None
+        Smallest number of retained modes whose tail still falls within
+        ``tail_tolerance``, or ``None`` if no truncation qualifies.
+    reason : str
+        Human-readable explanation of the ``decay`` classification.
+    """
 
     tail_ratio: float
     decay: DecayClassification

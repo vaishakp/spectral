@@ -1,3 +1,24 @@
+"""Spin-weighted spherical harmonics :math:`{}_sY_{\\ell m}`.
+
+Evaluates the spin-weighted spherical harmonics directly from their
+Wigner-d representation, at a single coordinate or over a grid.
+
+Three precision/speed regimes are available across this subpackage:
+
+* the ``sympy``-backed routines here, which evaluate to an arbitrary number
+  of digits;
+* :mod:`spectools.spherical.Yslm_full_vec`, ``numpy``-vectorised and
+  accurate to roughly 11 digits;
+* :mod:`spectools.spherical.Yslm_mp` and
+  :mod:`spectools.spherical.Yslm_prec_grid_mp`, which parallelise the
+  arbitrary-precision evaluation with ``multiprocessing``.
+
+Computed harmonics are cached, since the same :math:`(s, \\ell, m)` on the
+same grid is typically needed many times over.
+
+Requires the ``spherical`` extra.
+"""
+
 import math
 
 import numpy as np
@@ -14,9 +35,9 @@ def check_Yslm_args(spin_weight, ell, emm):
     spin_weight : int
                   The Spin weight of the harmonic
     ell : int
-          The mode number :math:`\\ell'.
+          The mode number :math:`\\ell`.
     emm : int
-          The azimuthal mode number :math:`m'.
+          The azimuthal mode number :math:`m`.
     """
 
     assert ell >= abs(spin_weight), (
@@ -37,18 +58,18 @@ def Yslm(spin_weight, ell, emm, theta, phi):
     spin_weight : int
                   The Spin weight of the harmonic.
     ell : int
-          The mode number :math:`\\ell'.
+          The mode number :math:`\\ell`.
     emm : int
-          The azimuthal mode number :math:`m'.
+          The azimuthal mode number :math:`m`.
     theta : float
             The polar angle  :math:`\\theta` in radians,
     phi : float
-          The aximuthal angle :math:`\\phi' in radians.
+          The aximuthal angle :math:`\\phi` in radians.
 
     Returns
     --------
     Yslm : float
-           The value of Yslm at :math:`\\theta, phi'.
+           The value of Yslm at :math:`(\\theta, \\phi)`.
 
     Note
     ----
@@ -117,24 +138,68 @@ def Yslm(spin_weight, ell, emm, theta, phi):
 
 
 def check_Yslm_theta(theta_grid, threshold=1e-6):
-    theta_list = np.array(theta_grid).flatten()
+    """Nudge polar angles away from zero to avoid a singular evaluation.
 
-    tlocs = np.where(abs(theta_list) < threshold)[0]
-    zlocs = np.where(theta_list!=0)[0]
-    
-    if zlocs.size>0:
-        locs = [item for item in tlocs if item not in zlocs]
-    else:
-        locs = tlocs
+    The closed form for :math:`{}_sY_{\\ell m}` contains powers of
+    :math:`\\sin(\\theta / 2)` that can be negative, so a :math:`\\theta`
+    numerically indistinguishable from zero produces ``nan`` instead of the
+    correct limit. The intent is to displace any such value by
+    ``threshold``, keeping its sign.
 
-    for index in locs:
-        sign = theta_list[index] / abs(theta_list[index])
+    Parameters
+    ----------
+    theta_grid : array_like
+        Polar angles in radians, of any shape.
+    threshold : float, optional
+        Both the detection tolerance and the size of the displacement.
+        Default ``1e-6``.
 
-        theta_list[index] = theta_list[index] + sign * threshold
+    Returns
+    -------
+    ndarray
+        ``theta_grid`` as a float array of the same shape, with every
+        entry satisfying ``abs(theta) >= threshold``.
 
-    return theta_list.reshape(np.array(theta_grid).shape)
+    Notes
+    -----
+    Exactly-zero entries have no sign to preserve and are displaced in the
+    positive direction.
+
+    :func:`Yslm` and :func:`Yslm_vec` use a pole-stable ``cos``/``sin``
+    closed form and do not need this nudge; it is only required by
+    formulations that divide by :math:`\\tan(\\theta / 2)`.
+
+    .. versionchanged:: 2026.10.02
+
+       Previously inverted: it selected the entries that were *exactly*
+       zero rather than those that were small but non-zero, then computed
+       their sign as ``0 / 0``, so exact zeros became ``nan`` while small
+       non-zero angles were left untouched -- the opposite of the intent
+       in both cases. It also returned the array unchanged whenever every
+       entry was small.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from spectools.spherical.swsh import check_Yslm_theta
+    >>> check_Yslm_theta(np.array([0.0, 1e-9, -1e-9, 0.5]))
+    array([ 1.e-06,  1.e-06, -1.e-06,  5.e-01])
+    """
+    theta = np.array(theta_grid, dtype=float)
+
+    small = np.abs(theta) < threshold
+
+    # np.sign would give 0 for an exact zero, leaving it on the pole;
+    # such entries have no sign to preserve, so push them positive.
+    signs = np.where(theta[small] < 0, -1.0, 1.0)
+    theta[small] = signs * threshold
+
+    return theta
 
 
+#: Nested cache of vectorised harmonics, keyed as
+#: ``[spin_weight][ell_max]["l{ell}m{emm}"]``. Populated by
+#: :func:`Yslm_vec` when called with ``cache=True``.
 Yslm_vec_cache = {}
 
 
@@ -147,18 +212,18 @@ def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid, cache=False):
     spin_weight : int
                   The Spin weight of the harmonic
     ell : int
-          The mode number :math:`\\ell'.
+          The mode number :math:`\\ell`.
     emm : int
-          The azimuthal mode number :math:`m'.
+          The azimuthal mode number :math:`m`.
     theta : float
             The polar angle  :math:`\\theta` in radians,
     phi : float
-          The aximuthal angle :math:`\\phi' in radians.
+          The aximuthal angle :math:`\\phi` in radians.
 
     Returns
     --------
     Yslm : float
-           The value of Yslm at :math:`\\theta, phi'.
+           The value of Yslm at :math:`(\\theta, \\phi)`.
 
     Note
     ----
@@ -314,6 +379,34 @@ def Yslm_vec(spin_weight, ell, emm, theta_grid, phi_grid, cache=False):
 
 
 def query_Yslm_vec_cache(spin_weight, ell_max, ell, emm):
+    """Check whether a harmonic is already cached, creating its slot if not.
+
+    Walks :data:`Yslm_vec_cache` down to the
+    ``[spin_weight][ell_max]["l{ell}m{emm}"]`` entry, inserting any missing
+    intermediate dictionaries along the way, so that a subsequent write can
+    assume the path exists.
+
+    Parameters
+    ----------
+    spin_weight : int
+        Spin weight of the harmonic.
+    ell_max : int
+        Band limit the cached grid was computed for. Entries computed at
+        different ``ell_max`` are kept separate.
+    ell, emm : int
+        Mode numbers :math:`\\ell` and :math:`m`.
+
+    Returns
+    -------
+    bool
+        ``True`` if a value is already cached for this mode, ``False`` if
+        the slot was absent or still empty.
+
+    Notes
+    -----
+    Has the side effect of creating the cache slot. The cache is never
+    evicted from and grows for the lifetime of the process.
+    """
 
     flag = False
 
@@ -342,13 +435,13 @@ def Yslm_prec_grid(spin_weight, ell, emm, theta_grid, phi_grid, prec=24):
     spin_weight : int
                   The Spin weight of the harmonic
     ell : int
-          The mode number :math:`\\ell'.
+          The mode number :math:`\\ell`.
     emm : int
-          The azimuthal mode number :math:`m'.
+          The azimuthal mode number :math:`m`.
     theta_grid : 2darray
                  The polar angle  :math:`\\theta` in radians,
     phi_grid : 2darray
-               The aximuthal angle :math:`\\phi' in radians.
+               The aximuthal angle :math:`\\phi` in radians.
     pres : int, optional
            The precision i.e. number of digits to compute
            upto. Default value is 16.
@@ -357,7 +450,7 @@ def Yslm_prec_grid(spin_weight, ell, emm, theta_grid, phi_grid, prec=24):
     --------
     Yslm_vals : float
                The value of Yslm at the grid
-               :math:`\\theta, phi'.
+               :math:`(\\theta, \\phi)`.
     """
 
     theta_grid_1d, phi_grid_1d = theta_grid.flatten(), phi_grid.flatten()
@@ -392,13 +485,13 @@ def Yslm_prec(spin_weight, ell, emm, theta, phi, prec=24):
     spin_weight : int
                   The Spin weight of the harmonic
     ell : int
-          The mode number :math:`\\ell'.
+          The mode number :math:`\\ell`.
     emm : int
-          The azimuthal mode number :math:`m'.
+          The azimuthal mode number :math:`m`.
     theta : float
             The polar angle  :math:`\\theta` in radians,
     phi : float
-          The aximuthal angle :math:`\\phi' in radians.
+          The aximuthal angle :math:`\\phi` in radians.
     pres : int, optional
            The precision i.e. number of digits to compute
            upto. Default value is 16.
@@ -406,7 +499,7 @@ def Yslm_prec(spin_weight, ell, emm, theta, phi, prec=24):
     Returns
     --------
     Yslm : float
-           The value of Yslm at :math:`\\theta, phi'.
+           The value of Yslm at :math:`(\\theta, \\phi)`.
     """
 
     check_Yslm_args(spin_weight, ell, emm)
@@ -437,13 +530,13 @@ def Yslm_prec_sym(spin_weight, ell, emm):
     spin_weight : int
                   The Spin weight of the harmonic
     ell : int
-          The mode number :math:`\\ell'.
+          The mode number :math:`\\ell`.
     emm : int
-          The azimuthal mode number :math:`m'.
+          The azimuthal mode number :math:`m`.
     theta : float
             The polar angle  :math:`\\theta` in radians,
     phi : float
-          The aximuthal angle :math:`\\phi' in radians.
+          The aximuthal angle :math:`\\phi` in radians.
     pres : int, optional
            The precision i.e. number of digits to compute
            upto. Default value is 16.
@@ -451,7 +544,7 @@ def Yslm_prec_sym(spin_weight, ell, emm):
     Returns
     --------
     Yslm : sym
-           The value of Yslm at :math:`\\theta, phi'.
+           The value of Yslm at :math:`(\\theta, \\phi)`.
     """
 
     check_Yslm_args(spin_weight, ell, emm)
@@ -675,6 +768,24 @@ def create_Yslm_modes_array(theta, phi, spin_weight, ell_max):
 
 
 def get_spherical_Yslm_index(ell, emm):
+    """Return the flat index of mode :math:`(\\ell, m)`.
+
+    Maps a two-dimensional mode label onto the position it occupies in a
+    flat, ``ell``-major ordered mode array, as used by the ``spherical``
+    package.
+
+    Parameters
+    ----------
+    ell : int
+        Mode number :math:`\\ell`.
+    emm : int
+        Azimuthal mode number :math:`m`, in ``-ell <= emm <= ell``.
+
+    Returns
+    -------
+    int
+        Position of the mode in the flattened array.
+    """
     ind = 0
     for ell_ind in range(ell + 1):
         ind += 2 * ell_ind + 1

@@ -1,3 +1,8 @@
-# Building the documentation only
-recommonmark
+# Building the documentation only. Installed by `pip install spectools[docs]`.
+#
+# conf.py mocks out the heavy optional dependencies (mpi4py, waveformtools,
+# sxstools, ...), so the API reference builds from a numpy-only checkout.
+sphinx
 sphinx-rtd-theme
+numpydoc
+recommonmark

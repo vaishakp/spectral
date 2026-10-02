@@ -1,3 +1,18 @@
+"""3D spectral interpolation on a single time slice.
+
+The same angular spin-weighted spherical harmonic plus radial Chebyshev
+decomposition as :mod:`spectools.interpolation.interpolate_new`, but for
+one time slice only, so no time axis is carried through the interpolant.
+
+Use this when you need to interpolate a single snapshot: it avoids the
+bookkeeping and the memory cost of the time-axis variants.
+:mod:`spectools.interpolation.interpolate_single_t_vectorized` is the
+faster vectorized form of the same thing. See
+:mod:`spectools.interpolation` for how the five variants relate.
+
+Requires the ``spherical`` extra, ``mpi4py`` and ``qlmtools``.
+"""
+
 import mpi4py
 from mpi4py import MPI
 import numpy as np
@@ -25,7 +40,7 @@ class Interpolate3D(ParallelClassTemplate):
 
     The interpolation is carried out using N mpi workers. The angular
     decomposition on every shell and the radial decomposision of each
-    obtained angular mode coefficient :math:`\\C_{\ell m}` is distributed
+    obtained angular mode coefficient :math:`C_{\\ell m}` is distributed
     to MPI processors.
 
     The evaluation is also done in parallel. First, angular coordinates at the
@@ -140,25 +155,39 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def interpolant(self):
+        """The assembled spectral interpolant.
+
+        The radial Chebyshev coefficients of each angular mode
+        :math:`C_{\\ell m}(r)`, which together define the interpolant.
+        Built by the decomposition stage; ``None`` until then.
+        """
         return self._interpolant
 
     @property
     def ang_grid(self):
+        """GLGrid: Angular grid the spherical harmonic expansion is done on."""
 
         return self._ang_grid
 
     @property
     def input_grid(self):
+        """The grid the input data is sampled on.
+
+        A Gauss-Legendre x Chebyshev product grid: :attr:`ang_grid` on each
+        shell, at the radii of :attr:`radial_grid`.
+        """
 
         return self._input_grid
 
     @property
     def radial_grid(self):
+        """ChebyshevSpectral: Radial Chebyshev basis over the shell radii."""
 
         return self._radial_grid
 
     @property
     def method_info(self):
+        """MethodInfo: Band limit and quadrature choices for the expansion."""
         return self._method_info
 
     def pre_setup(self):

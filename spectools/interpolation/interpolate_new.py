@@ -1,3 +1,25 @@
+"""3D spectral interpolation over a time axis.
+
+Interpolates a field sampled on a Gauss-Legendre x Chebyshev spectral grid
+onto arbitrary points, by expanding each spherical shell in spin-weighted
+spherical harmonics and then expanding each resulting mode coefficient
+:math:`C_{\\ell m}(r)` radially in Chebyshev polynomials. Both stages are
+distributed over MPI ranks.
+
+The successor to :mod:`spectools.interpolation.interpolate`: it uses
+``spectools``' own Chebyshev and spherical transforms rather than
+``qlmtools``', builds on ``parallellib``'s MPI class template, and can load
+its input directly through ``sxstools``' ``SXSDataLoader``. Interpolants
+can be saved to and restored from HDF5, so an expensive decomposition can
+be reused across sessions.
+
+:mod:`spectools.interpolation.interpolate_new_vectorized` is the same
+algorithm with the per-mode loops vectorised; prefer it unless memory is
+tight. See :mod:`spectools.interpolation` for how the five variants relate.
+
+Requires the ``spherical`` extra and ``mpi4py``.
+"""
+
 # from joblib import Parallel
 from mpi4py import MPI
 import numpy as np
@@ -86,18 +108,23 @@ class Interpolate3D(ParallelClassTemplate):
 
     Notes
     -----
-    1. Assumes the same number of radial and angular collocation points
-       across all time steps
-    2. The data from all time steps are pooled together before angular expansion happens
-    3. Each shell is labelled with r and t
-    4. Angular decompositions are MPI parallelzed.
-    4. After angular expansion, one has rClmt
-    5. Clm modes on a single line of sight in r from across time steps are pooled together.
-    6. Radial decompositions of each angular mode is MPI paralellzed across time. Withinn each time step,
-       the Clmr decomposition to Clmq are vectorized i.e. Clmrt -> Clmpt (radial physical to spectral) are MPI Parallelized
-       over t and vectorized over lm.
-    7. Evaluations are MPI parallelized within each time step but not across
-       it.
+    Assumes the same number of radial and angular collocation points across
+    all time steps.
+
+    1. The data from all time steps are pooled together before the angular
+       expansion happens.
+    2. Each shell is labelled with ``r`` and ``t``.
+    3. Angular decompositions are MPI parallelized.
+    4. After the angular expansion, one has ``rClmt``.
+    5. ``Clm`` modes on a single line of sight in ``r``, from across time
+       steps, are pooled together.
+    6. Radial decomposition of each angular mode is MPI parallelized
+       across time. Within each time step the ``Clmr -> Clmq``
+       decomposition is vectorized, i.e. ``Clmrt -> Clmpt`` (radial
+       physical to spectral) is MPI parallelized over ``t`` and vectorized
+       over ``lm``.
+    7. Evaluations are MPI parallelized within each time step but not
+       across it.
 
     """
 
@@ -180,14 +207,17 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def n_time(self):
+        """int: Number of time slices, i.e. the leading axis of :attr:`shape`."""
         return self.shape[0]
 
     @property
     def time_axis(self):
+        """ndarray or None: The time values of the slices, if supplied."""
         return self._time_axis
 
     @property
     def label(self):
+        """str: A label identifying this run or dataset."""
         return self._label
 
     @property
@@ -261,6 +291,11 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def input_grid(self):
+        """The grid the input data is sampled on.
+
+        A Gauss-Legendre x Chebyshev product grid: the angular grid on
+        each shell, at the radii of the radial Chebyshev grid.
+        """
         return self._input_grid
 
     @property
@@ -294,6 +329,11 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def saved_interpolant_file(self):
+        """Path or None: HDF5 file a previously computed interpolant was loaded from.
+
+        ``None`` when the decomposition is being computed afresh rather
+        than restored.
+        """
         return self._saved_interpolant_file
 
     @property
@@ -312,10 +352,12 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def axis_rotation_angles(self):
+        """The Euler angles applied to reorient the coordinate axes, if any."""
         return self._axis_rotation_angles
 
     @property
     def sxs_data_loader(self):
+        """SXSDataLoader or None: Loader supplying the input data, if used."""
         return self._sxs_data_loder
 
     ####################################
@@ -884,6 +926,23 @@ class Interpolate3D(ParallelClassTemplate):
         return ordered_data_segment
 
     def reorganize_mpi_job_output(self, job_output):
+        """Flatten and re-sort results gathered from the MPI ranks.
+
+        Ranks return their results in completion order, and nested one
+        level per rank. This flattens that nesting and sorts by the job id
+        carried alongside each result, restoring the original job order.
+
+        Parameters
+        ----------
+        job_output : list
+            Nested per-rank results, each element a ``(jobid, values)``
+            pair.
+
+        Returns
+        -------
+        ndarray
+            The values alone, in job-id order.
+        """
 
         job_output = flatten_3l(job_output)
 
@@ -1027,19 +1086,27 @@ class Interpolate3D(ParallelClassTemplate):
         return theta_index, phi_index
 
     def get_cached_Ylm(self, ang_jobid):
-        """For scattered evaluation, get all the values of Ylm
-        correspondig to
+        """Get the cached Ylm values for one angular evaluation point.
 
-        1. all ell, m
-        2. one time step (implicit).
-        3. particular angular coordinates corresponding to
-        ang_jobid.
+        For scattered evaluation, returns the values of Ylm corresponding
+        to:
 
-        at angular coordinate of the interpolation point
-        specified by ang_jobid.
+        1. all ``ell``, ``emm``;
+        2. one time step (implicit);
+        3. the particular angular coordinates corresponding to
+           ``ang_jobid``.
 
-        ang_jobid is the index of the flattened coordinate
-        array at the respective time step.
+        Parameters
+        ----------
+        ang_jobid : int
+            Index into the flattened coordinate array at the respective
+            time step, identifying the angular coordinate of the
+            interpolation point.
+
+        Returns
+        -------
+        ndarray
+            The cached Ylm values over all modes at that point.
         """
 
         cached_chunk = self.Ylm_cache._modes_data[:, :, ang_jobid]
@@ -1048,11 +1115,41 @@ class Interpolate3D(ParallelClassTemplate):
         return cached_chunk
 
     def get_number_from_ell_emm(self, ell, emm):
+        """Return the flat mode index of :math:`(\\ell, m)`.
+
+        Maps a mode label onto its position in a flat, ``ell``-major
+        ordered mode array. Inverse of :meth:`get_ell_emm_from_number`.
+
+        Parameters
+        ----------
+        ell, emm : int
+            Mode numbers :math:`\\ell` and :math:`m`, with
+            ``-ell <= emm <= ell``.
+
+        Returns
+        -------
+        int
+            Flat index of the mode.
+        """
         number = (ell + 1) * (ell - 1) + emm + ell + 1
 
         return number
 
     def get_ell_emm_from_number(self, number):
+        """Return the :math:`(\\ell, m)` of a flat mode index.
+
+        Inverse of :meth:`get_number_from_ell_emm`.
+
+        Parameters
+        ----------
+        number : int
+            Flat index into an ``ell``-major ordered mode array.
+
+        Returns
+        -------
+        tuple of int
+            The ``(ell, emm)`` of that mode.
+        """
         ell = int(np.sqrt(number))
 
         emm = number - ell**2 - ell
@@ -1060,6 +1157,22 @@ class Interpolate3D(ParallelClassTemplate):
         return ell, emm
 
     def get_coor_group_from_jobid(self, jobid):
+        """Return the coordinate group an MPI job is responsible for.
+
+        Output coordinates are grouped by shared radius so that the radial
+        evaluation can be done once per group; each group is handed to one
+        job.
+
+        Parameters
+        ----------
+        jobid : int
+            Index into :attr:`coords_groups_list`.
+
+        Returns
+        -------
+        list
+            The coordinates in that group.
+        """
         return self.coords_groups_list[jobid]
 
     def get_Ylm_set_from_jobid(self, jobid):
@@ -1356,6 +1469,18 @@ class Interpolate3D(ParallelClassTemplate):
                 )
 
     def assign_interpolated_data(self, func_vals_list_ordered):
+        """Reshape ordered interpolated values onto the output grid.
+
+        Casts the gathered values to ``complex128`` and reshapes them to
+        match the output coordinate mesh, storing the result in
+        :attr:`interpolated_data`.
+
+        Parameters
+        ----------
+        func_vals_list_ordered : array_like
+            Interpolated values in output-coordinate order, as returned by
+            :meth:`reorganize_mpi_job_output`.
+        """
         func_vals = np.array(func_vals_list_ordered, dtype=np.complex128)
 
         message("Assiging interpolated data.. ", message_verbosity=2)
@@ -1833,6 +1958,26 @@ class Interpolate3D(ParallelClassTemplate):
             return None
 
     def evaluate_reorganized(self, t_step=None):
+        """Evaluate the interpolant at the output points, grouped by radius.
+
+        Output coordinates sharing a radius are grouped so that the radial
+        Chebyshev contraction is performed once per group, after which the
+        angular contraction is done for every direction in that group. The
+        groups are distributed across MPI ranks.
+
+        Parameters
+        ----------
+        t_step : int, optional
+            Index of the time slice to evaluate. Evaluation is
+            parallelised within a time step, not across time steps.
+
+        Returns
+        -------
+        list
+            Per-rank job output, as ``(jobid, values)`` pairs. Pass to
+            :meth:`reorganize_mpi_job_output` to restore the original
+            coordinate order.
+        """
         # Strategy
         # First, group coords with same r together
         # Second, evaluate 2d function value over angular elements

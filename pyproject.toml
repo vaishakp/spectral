@@ -29,8 +29,11 @@ readme = "README.md"
 requires-python = ">=3.0"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Mathematics",
 ]
 
 [tool.hatch.metadata.hooks.requirements_txt]
@@ -47,8 +50,9 @@ spherical = ["spherical-requirements.txt"]
 docs = ["docs-requirements.txt"]
 
 [project.urls]
-"Homepage" = "https://gitlab.com/vaishakp/spectools"
-"Bug Tracker" = "https://gitlab.com/vaishakp/spectools/issues"
+"Homepage" = "https://github.com/vaishakp/spectral"
+"Documentation" = "https://spectools.readthedocs.io/en/latest/"
+"Bug Tracker" = "https://github.com/vaishakp/spectral/issues"
 
 [tool.hatch.metadata]
 allow-direct-references = true

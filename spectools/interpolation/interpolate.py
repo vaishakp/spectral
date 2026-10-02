@@ -1,3 +1,26 @@
+"""3D spectral interpolation over a time axis. Original implementation.
+
+Interpolates a field sampled on a Gauss-Legendre x Chebyshev spectral grid
+onto arbitrary points, by expanding each spherical shell in spin-weighted
+spherical harmonics and then expanding each resulting mode coefficient
+:math:`C_{\\ell m}(r)` radially in Chebyshev polynomials. Both stages are
+distributed over MPI ranks.
+
+.. note::
+
+   This is the earliest of the five interpolation modules and is kept for
+   reference. It takes its ``ChebyshevSpectral`` and its transforms from
+   ``qlmtools`` and ``waveformtools`` rather than from :mod:`spectools`,
+   so it does not track changes made here.
+
+   Prefer :mod:`spectools.interpolation.interpolate_new_vectorized` for
+   new work, or :mod:`spectools.interpolation.interpolate_single_t_vectorized`
+   when only one time slice is needed. See
+   :mod:`spectools.interpolation` for how the five variants relate.
+
+Requires the ``spherical`` extra, ``mpi4py`` and ``qlmtools``.
+"""
+
 from mpi4py import MPI
 import numpy as np
 from waveformtools.waveformtools import flatten, message, unsort
@@ -152,6 +175,7 @@ class Interpolate3D:
 
     @property
     def label(self):
+        """str: A label identifying this run or dataset."""
         return self._label
 
     @property
@@ -210,14 +234,21 @@ class Interpolate3D:
 
     @property
     def mpi_rank(self):
+        """int: Rank of this process within :attr:`mpi_comm`.
+
+        Rank 0 is the one that emits progress messages and gathers
+        results.
+        """
         return self._mpi_rank
 
     @property
     def mpi_nprocs(self):
+        """int: Total number of MPI processes in the communicator."""
         return self._mpi_nprocs
 
     @property
     def mpi_comm(self):
+        """MPI.Comm: The communicator the work is distributed over."""
         return self._mpi_comm
 
     @property
@@ -238,6 +269,11 @@ class Interpolate3D:
 
     @property
     def input_grid(self):
+        """The grid the input data is sampled on.
+
+        A Gauss-Legendre x Chebyshev product grid: the angular grid on
+        each shell, at the radii of the radial Chebyshev grid.
+        """
         return self._input_grid
 
     @property
@@ -271,6 +307,11 @@ class Interpolate3D:
 
     @property
     def saved_interpolant_file(self):
+        """Path or None: File a previously computed interpolant was loaded from.
+
+        ``None`` when the decomposition is being computed afresh rather
+        than restored.
+        """
         return self._saved_interpolant_file
 
     @property
@@ -1780,6 +1821,26 @@ class Interpolate3D:
             return None
 
     def evaluate_reorganized(self, t_step=None):
+        """Evaluate the interpolant at the output points, grouped by radius.
+
+        Output coordinates sharing a radius are grouped so that the radial
+        Chebyshev contraction is performed once per group, after which the
+        angular contraction is done for every direction in that group. The
+        groups are distributed across MPI ranks.
+
+        Parameters
+        ----------
+        t_step : int, optional
+            Index of the time slice to evaluate. Evaluation is
+            parallelised within a time step, not across time steps.
+
+        Returns
+        -------
+        list
+            Per-rank job output, as ``(jobid, values)`` pairs. Pass to
+            :meth:`reorganize_mpi_job_output` to restore the original
+            coordinate order.
+        """
         # Strategy
         # First, group coords with same r together
         # Second, evaluate 2d function value over angular elements
@@ -1903,6 +1964,18 @@ class Interpolate3D:
             return None
 
     def assign_interpolated_data(self, func_vals_list_ordered):
+        """Reshape ordered interpolated values onto the output grid.
+
+        Casts the gathered values to ``complex128`` and reshapes them to
+        match the output coordinate mesh, storing the result in
+        :attr:`interpolated_data`.
+
+        Parameters
+        ----------
+        func_vals_list_ordered : array_like
+            Interpolated values in output-coordinate order, as returned by
+            :meth:`reorganize_mpi_job_output`.
+        """
         func_vals = np.array(func_vals_list_ordered, dtype=np.complex128)
 
         message("Assiging interpolated data.. ", message_verbosity=2)
@@ -2104,19 +2177,27 @@ class Interpolate3D:
         return theta_index, phi_index
 
     def get_cached_Ylm(self, ang_jobid):
-        """For scattered evaluation, get all the values of Ylm
-        correspondig to
+        """Get the cached Ylm values for one angular evaluation point.
 
-        1. all ell, m
-        2. one time step (implicit).
-        3. particular angular coordinates corresponding to
-        ang_jobid.
+        For scattered evaluation, returns the values of Ylm corresponding
+        to:
 
-        at angular coordinate of the interpolation point
-        specified by ang_jobid.
+        1. all ``ell``, ``emm``;
+        2. one time step (implicit);
+        3. the particular angular coordinates corresponding to
+           ``ang_jobid``.
 
-        ang_jobid is the index of the flattened coordinate
-        array at the respective time step.
+        Parameters
+        ----------
+        ang_jobid : int
+            Index into the flattened coordinate array at the respective
+            time step, identifying the angular coordinate of the
+            interpolation point.
+
+        Returns
+        -------
+        ndarray
+            The cached Ylm values over all modes at that point.
         """
 
         # if self.mpi_rank==0:
@@ -2133,11 +2214,41 @@ class Interpolate3D:
         return cached_chunk
 
     def get_number_from_ell_emm(self, ell, emm):
+        """Return the flat mode index of :math:`(\\ell, m)`.
+
+        Maps a mode label onto its position in a flat, ``ell``-major
+        ordered mode array. Inverse of :meth:`get_ell_emm_from_number`.
+
+        Parameters
+        ----------
+        ell, emm : int
+            Mode numbers :math:`\\ell` and :math:`m`, with
+            ``-ell <= emm <= ell``.
+
+        Returns
+        -------
+        int
+            Flat index of the mode.
+        """
         number = (ell + 1) * (ell - 1) + emm + ell + 1
 
         return number
 
     def get_ell_emm_from_number(self, number):
+        """Return the :math:`(\\ell, m)` of a flat mode index.
+
+        Inverse of :meth:`get_number_from_ell_emm`.
+
+        Parameters
+        ----------
+        number : int
+            Flat index into an ``ell``-major ordered mode array.
+
+        Returns
+        -------
+        tuple of int
+            The ``(ell, emm)`` of that mode.
+        """
         ell = int(np.sqrt(number))
 
         emm = number - ell**2 - ell
@@ -2145,6 +2256,23 @@ class Interpolate3D:
         return ell, emm
 
     def reorganize_mpi_job_output(self, job_output):
+        """Flatten and re-sort results gathered from the MPI ranks.
+
+        Ranks return their results in completion order, and nested one
+        level per rank. This flattens that nesting and sorts by the job id
+        carried alongside each result, restoring the original job order.
+
+        Parameters
+        ----------
+        job_output : list
+            Nested per-rank results, each element a ``(jobid, values)``
+            pair.
+
+        Returns
+        -------
+        ndarray
+            The values alone, in job-id order.
+        """
         job_output = flatten(job_output)
 
         message(
@@ -2178,6 +2306,22 @@ class Interpolate3D:
         return job_vals_list_ordered
 
     def get_coor_group_from_jobid(self, jobid):
+        """Return the coordinate group an MPI job is responsible for.
+
+        Output coordinates are grouped by shared radius so that the radial
+        evaluation can be done once per group; each group is handed to one
+        job.
+
+        Parameters
+        ----------
+        jobid : int
+            Index into the coordinate group list.
+
+        Returns
+        -------
+        list
+            The coordinates in that group.
+        """
         return self.coords_groups_list[jobid]
 
     def get_Ylm_set_from_jobid(self, jobid):

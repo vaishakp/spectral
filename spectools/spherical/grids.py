@@ -1,12 +1,36 @@
-""" Classes to hold grid information
+"""Angular grids on the sphere.
 
+Concrete implementations of :class:`spectools.spherical.abstract.SphericalGrid`,
+differing in how they place points along :math:`\\theta`. The :math:`\\phi`
+direction is equispaced in every case.
 
 Classes
 -------
-UniformGrid : grid info.
-              Stores information on the 2d grid in spherical polar coordinates.
-GLGrid : grid info
-         Stores a Gauss-Legendre type grid on a spherical surface.
+UniformGrid
+    Equispaced in both :math:`\\theta` and :math:`\\phi`. Simple to reason
+    about, but integration over it is only as accurate as the midpoint
+    rule.
+GLGrid
+    Gauss-Legendre points in :math:`\\theta`, so that quadrature over the
+    sphere is exact for band-limited functions. This is the grid to use
+    for spherical harmonic transforms. Constructed from a single band
+    limit ``L``.
+UniformGridOld, GLGridOld
+    Earlier standalone implementations, kept for backward compatibility.
+    They predate :class:`SphericalGrid` and do not inherit from it. Prefer
+    :class:`UniformGrid` and :class:`GLGrid` in new code.
+
+Requires the ``spherical`` extra.
+
+Examples
+--------
+>>> from spectools.spherical.grids import GLGrid
+>>> grid = GLGrid(L=10)
+>>> grid.ntheta, grid.nphi
+(11, 22)
+>>> theta, phi = grid.meshgrid
+>>> theta.shape
+(11, 22)
 """
 
 # from enum import property
@@ -19,7 +43,14 @@ from spectools.spherical.abstract import SphericalGrid
 
 
 class UniformGridOld:
-    """A class to store the theta-phi grid info."""
+    """A class to store the theta-phi grid info.
+
+    .. deprecated:: 2026.09
+
+       Predates :class:`spectools.spherical.abstract.SphericalGrid` and
+       does not inherit from it, so it will not work anywhere a
+       ``SphericalGrid`` is expected. Use :class:`UniformGrid` instead.
+    """
 
     def __init__(
         self,
@@ -49,23 +80,24 @@ class UniformGridOld:
 
     @property
     def grid_type(self):
+        """str: Label identifying the grid, ``'Uniform'``."""
         return self._grid_type
 
     @property
     def npix(self):
-        # Return the total number of pixels, including the ghost zones present at one iteration.
+        """int: Total pixels at one iteration, ghost zones included."""
         return (self.ntheta) * (self.nphi)
 
     @property
     def npix_act(self):
-        # Return the actual number of pixels, excluding the ghost zones present at one iteration.
+        """int: Pixels in the physical domain, ghost zones excluded."""
         return (self.ntheta - 2 * self.nghosts) * (
             self.nphi - 2 * self.nghosts
         )
 
     @property
     def npix_max(self):
-        # Return the (max) total number of pixels, including the ghost and buffer zones at one iteration.
+        """int: Total allocated pixels, ghost and buffer zones included."""
         return (self.nthetamax) * (self.nphimax)
 
     @property
@@ -84,22 +116,22 @@ class UniformGridOld:
 
     @property
     def dtheta(self):
-        # Return the coodinate spacing d\theta
+        """float: Coordinate spacing :math:`d\\theta`, uniform in theta."""
         return np.pi / (self.ntheta - 2 * self.nghosts)
 
     @property
     def dphi(self):
-        # Return the coordinate spacing d\phi
+        """float: Coordinate spacing :math:`d\\phi`."""
         return 2 * np.pi / (self.nphi - 2 * self.nghosts)
 
     @property
     def nbuffer(self):
-        # Return the coordinate spacing d\phi
+        """int: Buffer cells along :math:`\\theta`, excluding ghost zones."""
         return self.nthetamax - self.ntheta
 
     @property
     def shape(self):
-        """Return the shape of the grif"""
+        """tuple of int: Grid shape, ghost and buffer zones excluded."""
         return (self.ntheta_act, self.nphi_act)
 
     @property
@@ -257,7 +289,33 @@ class UniformGridOld:
 
 
 class UniformGrid(SphericalGrid):
-    """A class to store the theta-phi grid info."""
+    """An equispaced :math:`\\theta`-:math:`\\phi` grid on the sphere.
+
+    Points are uniformly spaced in both angles. See
+    :class:`spectools.spherical.abstract.SphericalGrid` for the meaning of
+    the constructor arguments and of the ghost and buffer zones.
+
+    For spherical harmonic transforms prefer :class:`GLGrid`, whose
+    quadrature is exact for band-limited functions.
+
+    .. versionchanged:: 2026.10.02
+
+       ``__init__`` previously forwarded hard-coded defaults to the base
+       class instead of the arguments it was given, so every argument but
+       ``grid_type`` was silently ignored and only the default resolution
+       of ``nphi=80, ntheta=41`` was reachable. Arguments are now honoured,
+       so code that passed non-default values and silently got the
+       defaults will now get the grid it actually asked for.
+
+    Examples
+    --------
+    >>> from spectools.spherical.grids import UniformGrid
+    >>> grid = UniformGrid(nphi=160, ntheta=81)
+    >>> grid.nphi, grid.ntheta
+    (160, 81)
+    >>> grid.shape
+    (77, 156)
+    """
 
     def __init__(
         self,
@@ -270,13 +328,13 @@ class UniformGrid(SphericalGrid):
         grid_type="Uniform",
     ):
         super().__init__(
-            nphi=80,
-            ntheta=41,
-            nphimax=124,
-            nthetamax=66,
-            nghosts=2,
-            integration_method="MP",
-            grid_type="Uniform",
+            nphi=nphi,
+            ntheta=ntheta,
+            nphimax=nphimax,
+            nthetamax=nthetamax,
+            nghosts=nghosts,
+            integration_method=integration_method,
+            grid_type=grid_type,
         )
 
         self._grid_type = grid_type
@@ -312,7 +370,10 @@ class UniformGrid(SphericalGrid):
 
     @property
     def dtheta(self):
-        # Return the coodinate spacing d\theta
+        """float: Coordinate spacing :math:`d\\theta`.
+
+        Constant for this grid, since the polar points are equispaced.
+        """
         return np.pi / (self.ntheta - 2 * self.nghosts)
 
     def to_GLGrid(self):
@@ -518,6 +579,7 @@ class GLGridOld:
 
     @property
     def grid_type(self):
+        """str: Label identifying the grid, ``'GL'``."""
 
         return self._grid_type
 

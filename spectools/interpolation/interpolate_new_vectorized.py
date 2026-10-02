@@ -1,3 +1,18 @@
+"""3D spectral interpolation over a time axis, vectorized.
+
+The vectorized counterpart of
+:mod:`spectools.interpolation.interpolate_new`: the same angular
+spin-weighted spherical harmonic plus radial Chebyshev decomposition, but
+with the per-mode and per-shell loops replaced by array operations, on top
+of the MPI distribution.
+
+Faster, at the cost of holding more of the decomposition in memory at once.
+This is the recommended module for interpolating across a time axis. See
+:mod:`spectools.interpolation` for how the five variants relate.
+
+Requires the ``spherical`` extra, ``mpi4py`` and ``qlmtools``.
+"""
+
 from mpi4py import MPI
 import numpy as np
 
@@ -79,28 +94,37 @@ class Interpolate3D(ParallelClassTemplate):
 
     Notes
     -----
-    Decoposition strategy
-    1. Assumes the same number of radial and angular collocation points
-       across all time steps.
-    2. The data from shells from all time steps are pooled together before angular expansion happens
-    3. Each shell is labelled with r and t
-    4. Angular decompositions are fully vectorized over r and t i.e. one shell for
-       each r and t is distributed to one MPI worker.
-    4. After angular expansion, one has C_lmrt
-    5. C_lm modes on all lines of sight in r and from across time steps are pooled together.
-    6. Radial decompositions of the angular modes on all rays (over lm and time) are vectorized.
-       i.e. C_lmrt -> Clmpt (radial physical to spectral) are fully vectorized over r and t.
-    7. If needed, interpolation over time can be carried out using a spline interpolation.
+    Assumes the same number of radial and angular collocation points across
+    all time steps.
+
+    **Decomposition strategy**
+
+    1. The data from shells from all time steps are pooled together before
+       the angular expansion happens.
+    2. Each shell is labelled with ``r`` and ``t``.
+    3. Angular decompositions are fully vectorized over ``r`` and ``t``,
+       i.e. one shell for each ``r`` and ``t`` is distributed to one MPI
+       worker.
+    4. After the angular expansion, one has ``C_lmrt``.
+    5. ``C_lm`` modes on all lines of sight in ``r``, and from across time
+       steps, are pooled together.
+    6. Radial decompositions of the angular modes on all rays (over ``lm``
+       and time) are vectorized, i.e. ``C_lmrt -> C_lmpt`` (radial
+       physical to spectral) is fully vectorized over ``r`` and ``t``.
+    7. If needed, interpolation over time can be carried out using a
+       spline interpolation.
     8. Only evaluations are parallelized.
 
+    **Evaluation strategy**
 
-    Evaluation strategy
-    1. The spectral eval parameter space is (t, r, theta, phi)
+    1. The spectral evaluation parameter space is
+       ``(t, r, theta, phi)``.
     2. Evaluations can be distributed to MPI processors individually.
-    3. Evaluations are MPI parallelized within each time step but not across
-    it. So evaluations within a given time step are carried out by grouping coordinates
-    having multiple angular positions at a single shell. Evaluations are vectorized
-    within a shell/coordianate group but MPI parallelized across ccordinate groups.
+    3. Evaluations are MPI parallelized within each time step but not
+       across it. Evaluations within a given time step are carried out by
+       grouping coordinates having multiple angular positions at a single
+       shell; they are vectorized within a shell or coordinate group, but
+       MPI parallelized across coordinate groups.
 
     """
 
@@ -179,6 +203,7 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def ntime(self):
+        """int: Number of time slices, i.e. the leading axis of :attr:`shape`."""
         return self.shape[0]
 
     @property
@@ -239,9 +264,13 @@ class Interpolate3D(ParallelClassTemplate):
 
     @property
     def raw_data(self):
-        """The data to be interpolated, in a specified
-        coordinate system. The coordinate system is specified
-         at xxx"""
+        """ndarray: The data to be interpolated.
+
+        Sampled on :attr:`input_grid`, the Gauss-Legendre x Chebyshev
+        product grid, with shape ``(time, r, theta, phi)``. Input given
+        for a single time slice is promoted to a leading time axis of
+        length 1 by the constructor.
+        """
 
         return self._raw_data
 
@@ -829,6 +858,23 @@ class Interpolate3D(ParallelClassTemplate):
         return ordered_data_segment
 
     def reorganize_mpi_job_output(self, job_output):
+        """Flatten and re-sort results gathered from the MPI ranks.
+
+        Ranks return their results in completion order, and nested one
+        level per rank. This flattens that nesting and sorts by the job id
+        carried alongside each result, restoring the original job order.
+
+        Parameters
+        ----------
+        job_output : list
+            Nested per-rank results, each element a ``(jobid, values)``
+            pair.
+
+        Returns
+        -------
+        ndarray
+            The values alone, in job-id order.
+        """
 
         job_output = flatten_3l(job_output)
 
@@ -972,19 +1018,27 @@ class Interpolate3D(ParallelClassTemplate):
         return theta_index, phi_index
 
     def get_cached_Ylm(self, ang_jobid):
-        """For scattered evaluation, get all the values of Ylm
-        correspondig to
+        """Get the cached Ylm values for one angular evaluation point.
 
-        1. all ell, m
-        2. one time step (implicit).
-        3. particular angular coordinates corresponding to
-        ang_jobid.
+        For scattered evaluation, returns the values of Ylm corresponding
+        to:
 
-        at angular coordinate of the interpolation point
-        specified by ang_jobid.
+        1. all ``ell``, ``emm``;
+        2. one time step (implicit);
+        3. the particular angular coordinates corresponding to
+           ``ang_jobid``.
 
-        ang_jobid is the index of the flattened coordinate
-        array at the respective time step.
+        Parameters
+        ----------
+        ang_jobid : int
+            Index into the flattened coordinate array at the respective
+            time step, identifying the angular coordinate of the
+            interpolation point.
+
+        Returns
+        -------
+        ndarray
+            The cached Ylm values over all modes at that point.
         """
 
         cached_chunk = self.Ylm_cache._modes_data[:, :, ang_jobid]
@@ -993,11 +1047,41 @@ class Interpolate3D(ParallelClassTemplate):
         return cached_chunk
 
     def get_number_from_ell_emm(self, ell, emm):
+        """Return the flat mode index of :math:`(\\ell, m)`.
+
+        Maps a mode label onto its position in a flat, ``ell``-major
+        ordered mode array. Inverse of :meth:`get_ell_emm_from_number`.
+
+        Parameters
+        ----------
+        ell, emm : int
+            Mode numbers :math:`\\ell` and :math:`m`, with
+            ``-ell <= emm <= ell``.
+
+        Returns
+        -------
+        int
+            Flat index of the mode.
+        """
         number = (ell + 1) * (ell - 1) + emm + ell + 1
 
         return number
 
     def get_ell_emm_from_number(self, number):
+        """Return the :math:`(\\ell, m)` of a flat mode index.
+
+        Inverse of :meth:`get_number_from_ell_emm`.
+
+        Parameters
+        ----------
+        number : int
+            Flat index into an ``ell``-major ordered mode array.
+
+        Returns
+        -------
+        tuple of int
+            The ``(ell, emm)`` of that mode.
+        """
         ell = int(np.sqrt(number))
 
         emm = number - ell**2 - ell
@@ -1005,6 +1089,22 @@ class Interpolate3D(ParallelClassTemplate):
         return ell, emm
 
     def get_coor_group_from_jobid(self, jobid):
+        """Return the coordinate group an MPI job is responsible for.
+
+        Output coordinates are grouped by shared radius so that the radial
+        evaluation can be done once per group; each group is handed to one
+        job.
+
+        Parameters
+        ----------
+        jobid : int
+            Index into :attr:`coords_groups_list`.
+
+        Returns
+        -------
+        list
+            The coordinates in that group.
+        """
         return self.coords_groups_list[jobid]
 
     def get_Ylm_set_from_jobid(self, jobid):
@@ -1301,6 +1401,18 @@ class Interpolate3D(ParallelClassTemplate):
                 )
 
     def assign_interpolated_data(self, func_vals_list_ordered):
+        """Reshape ordered interpolated values onto the output grid.
+
+        Casts the gathered values to ``complex128`` and reshapes them to
+        match the output coordinate mesh, storing the result in
+        :attr:`interpolated_data`.
+
+        Parameters
+        ----------
+        func_vals_list_ordered : array_like
+            Interpolated values in output-coordinate order, as returned by
+            :meth:`reorganize_mpi_job_output`.
+        """
         func_vals = np.array(func_vals_list_ordered, dtype=np.complex128)
 
         message("Assiging interpolated data.. ", message_verbosity=2)
@@ -1795,6 +1907,26 @@ class Interpolate3D(ParallelClassTemplate):
             return None
 
     def evaluate_reorganized(self, t_step=None):
+        """Evaluate the interpolant at the output points, grouped by radius.
+
+        Output coordinates sharing a radius are grouped so that the radial
+        Chebyshev contraction is performed once per group, after which the
+        angular contraction is done for every direction in that group. The
+        groups are distributed across MPI ranks.
+
+        Parameters
+        ----------
+        t_step : int, optional
+            Index of the time slice to evaluate. Evaluation is
+            parallelised within a time step, not across time steps.
+
+        Returns
+        -------
+        list
+            Per-rank job output, as ``(jobid, values)`` pairs. Pass to
+            :meth:`reorganize_mpi_job_output` to restore the original
+            coordinate order.
+        """
         # Strategy
         # First, group coords with same r together
         # Second, evaluate 2d function value over angular elements

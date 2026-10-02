@@ -23,7 +23,41 @@ class DecayClassification(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class FourierPowerDiagnostic:
-    """Summary of Fourier modal power and truncation behavior."""
+    """Summary of Fourier modal power and truncation behavior.
+
+    Returned by :func:`diagnose_fourier_power`. Immutable.
+
+    Attributes
+    ----------
+    tail_ratio : float
+        Power in the ``tail_modes`` largest-``|m|`` modes divided by the
+        total modal power. Small means the expansion is resolved.
+    decay : DecayClassification
+        Coarse classification of how the coefficients decay.
+    total_power : float
+        Summed power over all modes.
+    tail_power : float
+        Summed power over the highest-``|m|`` modes only.
+    leading_power : float
+        Power in the lowest-``|m|`` mode.
+    last_power : float
+        Power in the highest-``|m|`` mode.
+    slope : float
+        Least-squares slope of ``log10`` normalised power against mode
+        index, with modes ordered by ``|m|`` and fitted over the tail.
+        More negative means faster decay.
+    recommended_order : int or None
+        Smallest number of retained modes whose tail still falls within
+        ``tail_tolerance``, or ``None`` if no truncation qualifies.
+    reason : str
+        Human-readable explanation of the ``decay`` classification.
+
+    Notes
+    -----
+    Modes are ranked by ``|m|`` rather than by array position, since
+    coefficients are kept in NumPy FFT order where the most negative mode
+    sits in the middle of the array.
+    """
 
     tail_ratio: float
     decay: DecayClassification
@@ -47,14 +81,14 @@ def fourier_modal_power(coefficients, axis=0):
 
 
 def fourier_tail_ratio(coefficients, tail_modes=3, axis=0):
-    """Return high-|m| tail power divided by total Fourier modal power."""
+    """Return high-``|m|`` tail power divided by total Fourier modal power."""
 
     power = fourier_modal_power(coefficients, axis=axis)
     return fourier_tail_ratio_from_power(power, tail_modes=tail_modes)
 
 
 def fourier_tail_ratio_from_power(power, tail_modes=3):
-    """Return high-|m| tail power divided by total modal power."""
+    """Return high-``|m|`` tail power divided by total modal power."""
 
     power = np.asarray(power, dtype=float)
     total = float(np.sum(power))

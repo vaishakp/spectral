@@ -1,3 +1,18 @@
+"""Chebyshev collocation spectral methods on an arbitrary interval.
+
+Provides :class:`ChebyshevSpectral`, which bundles together the
+Gauss-Lobatto collocation points of an interval ``[a, b]``, the matrices
+that map between the physical (nodal) and spectral (modal) representation
+of a function sampled there, the first and second derivative matrices, and
+interpolation onto an arbitrary axis.
+
+Every expensive object is computed lazily on first access and then cached
+on the instance, so constructing a :class:`ChebyshevSpectral` is cheap and
+only the matrices actually touched are ever built.
+
+This module depends only on ``numpy``.
+"""
+
 import numpy as np
 
 # from chebyshev_basis import ToSpecMatrix, ToSpecMatrixDirect, ToPhysMatrix, ChebDerPhysToPhysMatrix, ChebDerSpecToPhysMatrix, ChebBasisMem, ChebBasisDirect, ChebBasisRec
@@ -11,6 +26,50 @@ def message(*args, **kwargs):
 
 
 class ChebyshevSpectral:
+    """A Chebyshev collocation basis on the physical interval ``[a, b]``.
+
+    The collocation points are the ``Nfuncs`` Chebyshev-Gauss-Lobatto
+    nodes, ordered from ``a`` to ``b``. A function is represented either
+    *physically*, by its values at those nodes, or *spectrally*, by its
+    coefficients in the Chebyshev polynomial basis; :attr:`MatrixPhysToSpec`
+    and :attr:`MatrixSpecToPhys` map between the two.
+
+    Parameters
+    ----------
+    Nfuncs : int
+        Number of basis functions, equal to the number of collocation
+        points. The highest resolved Chebyshev order is ``Nfuncs - 1``.
+    a, b : float, optional
+        Endpoints of the physical interval. Default to the logical
+        interval ``[-1, 1]``.
+    collocation_points_logical, collocation_points_physical : array_like, optional
+        Precomputed collocation points, to reuse rather than recompute.
+    MatrixPhysToSpec, MatrixSpecToPhys, MatrixD, MatrixDD : ndarray, optional
+        Precomputed transform and derivative matrices, to reuse rather
+        than recompute.
+
+    Attributes
+    ----------
+    ChebyshevBasisSet : ChebyshevBasis
+        The underlying basis object that supplies the raw matrices.
+
+    Notes
+    -----
+    All matrices and point sets are computed on first access and cached.
+    Passing them in through the constructor is purely an optimisation for
+    reusing work across instances of the same ``Nfuncs``.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from spectools.chebyshev.chebyshev import ChebyshevSpectral
+    >>> cheb = ChebyshevSpectral(Nfuncs=24, a=0.0, b=2.0)
+    >>> x = cheb.collocation_points_physical
+    >>> y = np.sin(x)
+    >>> dy = cheb.MatrixD @ y
+    >>> bool(np.allclose(dy, np.cos(x), atol=1e-10))
+    True
+    """
 
     def __init__(
         self,
@@ -40,23 +99,44 @@ class ChebyshevSpectral:
 
     @property
     def Nfuncs(self):
+        """int: Number of basis functions, i.e. of collocation points."""
         return self._Nfuncs
 
     @property
     def a(self):
+        """float: Left endpoint of the physical interval."""
         return self._a
 
     @property
     def b(self):
+        """float: Right endpoint of the physical interval."""
         return self._b
 
     def basis_func(self, order):
+        """Evaluate one Chebyshev basis function on the collocation points.
+
+        Parameters
+        ----------
+        order : int
+            Chebyshev polynomial order, in ``0 <= order < Nfuncs``.
+
+        Returns
+        -------
+        ndarray
+            ``T_order`` sampled at :attr:`collocation_points_logical`,
+            of shape ``(Nfuncs,)``.
+        """
         return self.ChebyshevBasisSet.ChebBasis(
             self.collocation_points_logical, order
         )
 
     @property
     def collocation_points_logical(self):
+        """ndarray: Gauss-Lobatto nodes on the logical interval ``[-1, 1]``.
+
+        The ``Nfuncs`` points ``-cos(n pi / (Nfuncs - 1))``, ascending from
+        ``-1`` to ``1``. Computed on first access and cached.
+        """
 
         if self._collocation_points_logical is None:
 
@@ -74,6 +154,13 @@ class ChebyshevSpectral:
 
     @property
     def collocation_points_physical(self):
+        """ndarray: Collocation points mapped onto ``[a, b]``.
+
+        :attr:`collocation_points_logical` affinely rescaled to the
+        physical interval. These are the points at which a function must
+        be sampled for the transform matrices to apply. Computed on first
+        access and cached.
+        """
 
         if self._collocation_points_physical is None:
             # Naxis = np.arange(self.Nfuncs+1)
@@ -92,9 +179,16 @@ class ChebyshevSpectral:
 
     @property
     def MatrixPhysToSpec(self):
-        """The matrix to transform from physical coordiate space
-        representation of the function to the Chebyshev polynomial
-        basis."""
+        """ndarray: Nodal-to-modal transform matrix, shape ``(Nfuncs, Nfuncs)``.
+
+        Maps the values of a function at :attr:`collocation_points_physical`
+        to its coefficients in the Chebyshev polynomial basis::
+
+            coeffs = cheb.MatrixPhysToSpec @ values
+
+        Inverse of :attr:`MatrixSpecToPhys`. Computed on first access and
+        cached.
+        """
 
         if self._MatrixPhysToSpec is None:
             # N_coord_points = len(x_logical_axis)
@@ -109,9 +203,16 @@ class ChebyshevSpectral:
 
     @property
     def MatrixSpecToPhys(self):
-        """The matrix to transform to physical coordiate space
-        representation of the function from the Chebyshev polynomial
-        basis."""
+        """ndarray: Modal-to-nodal transform matrix, shape ``(Nfuncs, Nfuncs)``.
+
+        Maps Chebyshev coefficients back to function values at
+        :attr:`collocation_points_physical`::
+
+            values = cheb.MatrixSpecToPhys @ coeffs
+
+        Inverse of :attr:`MatrixPhysToSpec`. Computed on first access and
+        cached.
+        """
 
         if self._MatrixSpecToPhys is None:
 
@@ -127,10 +228,16 @@ class ChebyshevSpectral:
 
     @property
     def MatrixD(self):
-        """The matrix of the derivative
-        of the basis functions. Given the physical coeffs, this
-        matrix maps them to the derivate in physical coords
-        `x_physical_axis`"""
+        """ndarray: First derivative matrix, shape ``(Nfuncs, Nfuncs)``.
+
+        Maps function values at :attr:`collocation_points_physical` to the
+        values of the first derivative at the same points, including the
+        ``2 / (b - a)`` factor for the physical interval::
+
+            dydx = cheb.MatrixD @ y
+
+        Computed on first access and cached.
+        """
 
         if self._MatrixD is None:
             message("Computing MatrixD", message_verbosity=2)
@@ -146,9 +253,34 @@ class ChebyshevSpectral:
 
     @property
     def MatrixDD(self):
-        """The matrix of the double derivative
-        of the basis functions. Given the physical coeffs, this
-        matrix maps them to the derivate in physical coords `x_logical_axis`"""
+        """ndarray: Second derivative matrix, shape ``(Nfuncs, Nfuncs)``.
+
+        Maps function values at :attr:`collocation_points_physical` to the
+        values of the second derivative at the same points::
+
+            d2ydx2 = cheb.MatrixDD @ y
+
+        Computed on first access and cached.
+
+        .. versionchanged:: 2026.10.02
+
+           Previously carried a spurious ``((b - a) / 2) ** 2`` prefactor
+           that cancelled the ``2 / (b - a)`` scaling already applied by
+           :attr:`MatrixD`, making the result correct only on an interval
+           of width 2 (such as the default ``[-1, 1]``). On any other
+           interval it was wrong by that factor. Code that compensated for
+           this by rescaling the result must drop the correction.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from spectools.chebyshev.chebyshev import ChebyshevSpectral
+        >>> cheb = ChebyshevSpectral(Nfuncs=28, a=0.0, b=4.0)
+        >>> x = cheb.collocation_points_physical
+        >>> y = np.sin(x)
+        >>> bool(np.allclose(cheb.MatrixDD @ y, -np.sin(x), atol=1e-9))
+        True
+        """
 
         if self._MatrixDD is None:
 
@@ -156,7 +288,10 @@ class ChebyshevSpectral:
 
             D1Phys = self.MatrixD
 
-            self._MatrixDD = ((self.b - self.a) / 2) ** 2 * D1Phys @ D1Phys
+            # D1Phys already carries the 2/(b-a) scaling, so squaring it
+            # gives the physical second derivative directly. Any extra
+            # interval prefactor here would cancel that scaling back out.
+            self._MatrixDD = D1Phys @ D1Phys
 
             message("Done", message_verbosity=2)
 
@@ -176,7 +311,35 @@ class ChebyshevSpectral:
 
     def EvaluateBasis(self, x, order):
         """Evaluate the Chebyshev basis of the required order
-        at the requested physical point `x`"""
+        at the requested physical point `x`.
+
+        Parameters
+        ----------
+        x : float
+            Physical coordinate, inside ``[a, b]``. A point just outside
+            the interval is snapped back onto the boundary, to absorb
+            rounding error in the caller's arithmetic.
+        order : int
+            Chebyshev polynomial order.
+
+        Returns
+        -------
+        float
+            The basis function of that order evaluated at ``x``.
+
+        Raises
+        ------
+        ValueError
+            If ``x`` lies more than ``1e-3`` outside the interval in
+            logical coordinates.
+
+        .. versionchanged:: 2026.10.02
+
+           The snapping branch referenced an undefined name ``sgn`` in its
+           log message and so raised ``NameError`` instead of correcting
+           the coordinate, making any point marginally outside the
+           interval -- the exact case the branch exists to handle -- fail.
+        """
 
         x_log = self.TransformPhysicalToLogical(x)
 
@@ -190,12 +353,14 @@ class ChebyshevSpectral:
                     f"The requested Chebyshev collocation point is outside the domain! x_log {x_log}. Please check the input coord x {x}"
                 )
             else:
+                sgn = np.sign(x_log)
+
                 message(
                     f"Manually setting x_log to {sgn} to correct for numerical precision error of {delta}",
                     message_verbosity=2,
                 )
 
-                x_log = np.sign(x_log)
+                x_log = sgn
 
         message(f"Value of x_log {x_log}", message_verbosity=4)
 

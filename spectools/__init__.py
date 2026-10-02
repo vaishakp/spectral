@@ -1,16 +1,45 @@
 # Copyright (c) 2020, Vaishak Prasad
 # See [LICENSE](https://gitlab.com/vaishakp/spectral/-/blob/main/LICENSE) file for details.
 """
-Module for the analysis and handling of numerical relativity and gravitational waveform data.
+Spectral methods for numerical work.
 
-Classes
--------
-sim: Base class for NR simulations data.
-                This is needed to retrieve and handle Numerical Relativity data.
-spherical_array:    A 2D data-type.
-                    Stores and manages two-dimensional data on surfaces of spherical topology.
-modes_array: A data-type.
-             Handle and work with mode coefficients.
+Transforms 1D functions on the real line and 2D functions on the sphere
+between their coordinate and spectral representations.
+
+Subpackages
+-----------
+chebyshev
+    Chebyshev collocation bases, nodal/modal transforms, derivative
+    matrices and interpolation, plus convergence diagnostics. Requires
+    only ``numpy``.
+fourier
+    Discrete Fourier transforms with fixed sign and normalisation
+    conventions, and the matching convergence diagnostics. Requires only
+    ``numpy``.
+spherical
+    Spin-weighted spherical harmonics to arbitrary precision, uniform and
+    Gauss-Legendre angular grids, and the transforms between them.
+    Requires the ``spherical`` extra.
+interpolation
+    A 3D spectral interpolator built from angular spin-weighted spherical
+    harmonic and radial Chebyshev expansions, parallelised with MPI.
+    Requires the ``spherical`` extra and ``mpi4py``.
+
+Notes
+-----
+Importing :mod:`spectools` itself pulls in nothing beyond the standard
+library; the subpackages carry their own dependencies, so a ``numpy``-only
+installation can still use :mod:`spectools.chebyshev` and
+:mod:`spectools.fourier`.
+
+Examples
+--------
+>>> import numpy as np
+>>> from spectools.chebyshev.chebyshev import ChebyshevSpectral
+>>> cheb = ChebyshevSpectral(Nfuncs=32, a=-1.0, b=1.0)
+>>> y = np.exp(cheb.collocation_points_physical)
+>>> bool(np.allclose(cheb.MatrixD @ y, y, atol=1e-10))
+True
 
 """
 import os

@@ -1,15 +1,24 @@
-name: myenv
+# Conda environment for working on spectools and building its documentation.
+#   conda env create -f docs/environment.yml
+#   conda activate spectools
+name: spectools
+
+channels:
+    - conda-forge
+    - defaults
 
 dependencies:
-    - python=3
-    - matplotlib
-    - termcolor
-    - numba
-    - datetime
-    - scipy
+    - python>=3.11
     - numpy
+    - scipy
+    - matplotlib
     - sympy
+    - h5py
+    - termcolor
+    # documentation build
+    - sphinx
+    - sphinx_rtd_theme
     - numpydoc
-channels:
-    - defaults
-    - conda-forge
+    - pip
+    - pip:
+        - recommonmark
