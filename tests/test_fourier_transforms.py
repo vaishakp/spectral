@@ -68,3 +68,21 @@ def test_fourier_transform_axes_transforms_multiple_axes():
 
 def test_fourier_mode_numbers_use_numpy_fft_order():
     np.testing.assert_array_equal(fourier_mode_numbers(6), [0, 1, 2, -3, -2, -1])
+
+
+def test_compute_ifft_round_trips_and_keeps_the_time_step():
+    from spectools.fourier.transforms import compute_fft, compute_ifft
+
+    for delta_t in (0.08, 1.0 / 16384):
+        n = 1000
+        t = np.arange(n) * delta_t
+        x = np.exp(-2j * np.pi * 7 * t / (n * delta_t)) + 0.3 * np.cos(2 * np.pi * 3 * t / (n * delta_t))
+
+        freq_axis, utilde = compute_fft(x, delta_t)
+        delta_f = freq_axis[1] - freq_axis[0]
+        time_axis, x_back = compute_ifft(utilde, delta_f)
+
+        np.testing.assert_allclose(x_back, x, atol=1e-12)
+        assert len(time_axis) == n
+        np.testing.assert_allclose(np.diff(time_axis), delta_t, rtol=1e-9)
+        assert time_axis[0] == 0

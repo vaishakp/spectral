@@ -186,12 +186,13 @@ def compute_ifft(utilde, delta_f):
     # delta_x		 = xdata[1] - xdata[0]
 
     # Naxis			 = np.arange(Nlen)
-    delta_t = round(1.0 / (delta_f * Nlen), 4)
-    # delta_t = 1.0 / (delta_f * Nlen)
-    # Dt				= Nlen * delta_f/2
+    # Do not round: for data sampled in seconds (e.g. 1/16384 s) rounding
+    # to a fixed number of decimals changes the time step.
+    delta_t = 1.0 / (delta_f * Nlen)
 
-    time_axis = np.linspace(0, delta_t * Nlen, Nlen)
-    # time_axis = np.arange(0, delta_t * Nlen, 1 / Nlen)
+    # One sample per step: linspace(0, delta_t * Nlen, Nlen) would space
+    # the samples by delta_t * Nlen / (Nlen - 1) instead.
+    time_axis = np.arange(Nlen) * delta_t
 
     return time_axis, udata_time
 
